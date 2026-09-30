@@ -11,6 +11,7 @@ import BotonBorrar from "@/components/BotonBorrar";
 import BotonHecha from "@/components/BotonHecha";
 import { AccionLead, Pasos } from "@/components/vistas/Leads";
 import PanelAcceso from "@/components/PanelAcceso";
+import PanelTelegram from "@/components/PanelTelegram";
 import BotonAccion from "@/components/BotonAccion";
 import { DECISIONES, EQUIPO, GALERIAS, TABLAS } from "@/config/galerias";
 
@@ -58,6 +59,7 @@ export default async function Ficha({ params }: Props) {
       </header>
 
       {ctx.t.id === EQUIPO.tabla && esAdmin(ctx.u) && <PanelAcceso r={r} esYo={r.id === ctx.u.id} />}
+      {ctx.t.id === EQUIPO.tabla && esAdmin(ctx.u) && <PanelTelegram r={r} />}
 
       {ctx.g.vista === "tareas" && <EventoDeTarea r={r} ctx={ctx} />}
 

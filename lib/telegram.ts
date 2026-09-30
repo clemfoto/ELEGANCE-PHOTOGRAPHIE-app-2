@@ -108,7 +108,10 @@ export function codigoVinculo(equipoId: string): string {
 }
 
 export function leerCodigoVinculo(codigo: string): string | null {
-  const [id, firma] = codigo.split("_");
+  // La firma (base64url) puede contener "_": se separa solo en el primero.
+  const corte = codigo.indexOf("_");
+  const id = corte > 0 ? codigo.slice(0, corte) : "";
+  const firma = corte > 0 ? codigo.slice(corte + 1) : "";
   if (!id || !firma || !/^rec[A-Za-z0-9]{14}$/.test(id)) return null;
   return igualSeguro(firma, derivar(`vinculo:${id}`).slice(0, 24)) ? id : null;
 }
