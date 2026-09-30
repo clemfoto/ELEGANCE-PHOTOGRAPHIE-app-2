@@ -48,13 +48,14 @@ export async function enviar(chatId: string, texto: string, botones?: Boton[]): 
   }
 }
 
-export async function enviarAdmins(texto: string): Promise<boolean> {
+export async function enviarAdmins(texto: string, botones?: Boton[]): Promise<boolean> {
   if (!chatAdmin()) console.warn("[telegram] falta TELEGRAM_ADMIN_CHAT_ID; no se avisa a administradores.");
-  return enviar(chatAdmin(), texto);
+  return enviar(chatAdmin(), texto, botones);
 }
 
-export async function responderBoton(callbackId: string, texto: string) {
-  await api("answerCallbackQuery", { callback_query_id: callbackId, text: texto }).catch(() => {});
+/** Responde al toque de un botón. `alerta`: ventana que hay que cerrar (para avisos importantes). */
+export async function responderBoton(callbackId: string, texto: string, alerta = false) {
+  await api("answerCallbackQuery", { callback_query_id: callbackId, text: texto, show_alert: alerta }).catch(() => {});
 }
 
 export async function editarMensaje(chatId: number | string, mensajeId: number, texto: string) {

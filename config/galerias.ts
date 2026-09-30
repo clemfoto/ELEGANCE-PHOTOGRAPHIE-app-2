@@ -337,6 +337,8 @@ export const AUTOMATIZACIONES = {
   palabrasConfirmar: ["confirmo", "si", "sí", "ok", "confirmado", "✅", "👍"],
   campos: {
     telegramChatId: "Telegram Chat ID",
+    /** "@usuario" de Telegram: sirve para reconocer a la persona cuando confirma desde el grupo. */
+    telegramUsuario: "Usuario Telegram",
     clienteSolicitudes: "solicitud especial",
     clienteNotificado: "Notificado",
     clienteInvitados: "Invitados Telegram",

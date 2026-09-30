@@ -49,7 +49,10 @@ export function sumarDias(iso: string, dias: number): string {
 /** "2026-09-26T18:42:26.000Z" → "2026-09-26" en la zona del negocio. */
 const fechaLocal = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA_HORARIA }).format(new Date(iso));
 
-type Persona = { id: string; nombre: string; chatId: string };
+type Persona = { id: string; nombre: string; chatId: string; usuario: string };
+
+/** "@Fede_EP " → "fede_ep" */
+const usuarioTg = (v: unknown) => String(v ?? "").trim().replace(/^@/, "").toLowerCase();
 
 async function equipo(): Promise<Map<string, Persona>> {
   const regs = await getRegistrosSinCache(EQUIPO.tabla);
@@ -60,6 +63,7 @@ async function equipo(): Promise<Map<string, Persona>> {
         id: r.id,
         nombre: String(r.fields[EQUIPO.nombre] ?? "Sin nombre"),
         chatId: String(r.fields[C.telegramChatId] ?? "").trim(),
+        usuario: usuarioTg(r.fields[C.telegramUsuario]),
       },
     ]),
   );
@@ -69,6 +73,10 @@ const nombres = (lista: string[], personas: Map<string, Persona>) =>
   lista.map((id) => personas.get(id)?.nombre ?? "?").join(", ") || "—";
 
 const nombreCliente = (r: AirRecord) => textoPrincipal(r.fields[str(gCli.nombre)]) || "Sin nombre";
+
+/** Botón "Confirmo" en los avisos del grupo: cada team member confirma ahí mismo con un toque. */
+const botonConfirmarGrupo = (r: AirRecord, team: string[], fechaEvento: string) =>
+  team.length && fechaEvento >= hoyISO() ? [{ texto: "✅ Confirmo mi presencia", datos: `c:${r.id}` }] : undefined;
 
 /* ------------------------------------------------------------------ */
 /* 1. Nuevos clientes: aviso a admins, invitaciones y entrega a 9 semanas */
@@ -110,10 +118,12 @@ export async function procesarClientes(base: string): Promise<string[]> {
           estados.length ? `🔵 ${h(estados.join(", "))}` : "",
           f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
           sinTelegram.length ? `\n⚠️ Sin Telegram conectado: ${h(sinTelegram.join(", "))}` : "",
+          botonConfirmarGrupo(r, team, fechaEvento) ? `\nTeam: toca el botón para confirmar tu presencia.` : "",
           `\n<a href="${base}/t/clientes/${r.id}">Abrir en la app</a>`,
         ]
           .filter(Boolean)
           .join("\n"),
+        botonConfirmarGrupo(r, team, fechaEvento),
       );
       if (ok) {
         cambios[C.clienteNotificado] = true;
@@ -144,10 +154,12 @@ export async function procesarClientes(base: string): Promise<string[]> {
           servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
           `👥 ${h(nombres(team, personas))}`,
           f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
+          botonConfirmarGrupo(r, team, fechaEvento) ? `\nTeam: toca el botón para confirmar tu presencia.` : "",
           `\n<a href="${base}/t/clientes/${r.id}">Abrir en la app</a>`,
         ]
           .filter(Boolean)
           .join("\n"),
+        botonConfirmarGrupo(r, team, fechaEvento),
       );
       if (ok) {
         cambios[C.clienteAvisoConfirmado] = true;
@@ -212,6 +224,16 @@ export async function moverEntregas(clienteId: string, fechaEvento: string): Pro
 export async function personaPorChat(chatId: string): Promise<Persona | null> {
   for (const p of (await equipo()).values()) if (p.chatId === chatId) return p;
   return null;
+}
+
+/**
+ * Quién tocó un botón: por su Telegram conectado o, si aún no lo conectó, por su
+ * "Usuario Telegram" de la ficha de Equipo (útil al confirmar desde el grupo).
+ */
+export async function personaPorTelegram(userId: string, usuario?: string): Promise<Persona | null> {
+  const personas = [...(await equipo()).values()];
+  const u = usuarioTg(usuario);
+  return personas.find((p) => p.chatId === userId) ?? (u ? personas.find((p) => p.usuario === u) : undefined) ?? null;
 }
 
 /** Marca a la persona como confirmada en el cliente y avisa a los administradores. */

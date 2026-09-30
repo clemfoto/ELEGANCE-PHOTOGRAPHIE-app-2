@@ -6,6 +6,7 @@ import {
   etiquetaEvento,
   pendientesDeConfirmar,
   personaPorChat,
+  personaPorTelegram,
   marcarVideoEntregado,
 } from "@/lib/automatizaciones";
 import { chatVideos, editarMensaje, enviar, h, igualSeguro, leerCodigoVinculo, responderBoton, secretoWebhook } from "@/lib/telegram";
@@ -15,7 +16,7 @@ type Update = {
   message?: { chat: { id: number; type: string }; from?: { id: number }; text?: string };
   callback_query?: {
     id: string;
-    from: { id: number };
+    from: { id: number; username?: string };
     data?: string;
     message?: { chat: { id: number }; message_id: number; text?: string };
   };
@@ -45,11 +46,19 @@ async function boton(q: NonNullable<Update["callback_query"]>) {
   if (video) return botonVideo(q, video[1]);
   const [tipo, clienteId] = (q.data ?? "").split(":");
   if (tipo !== "c" || !clienteId) return responderBoton(q.id, "Acción no reconocida.");
-  const persona = await personaPorChat(String(q.from.id));
-  if (!persona) return responderBoton(q.id, "Tu Telegram no está conectado a la app.");
+  const persona = await personaPorTelegram(String(q.from.id), q.from.username);
+  if (!persona) {
+    return responderBoton(
+      q.id,
+      "No te reconozco todavía. Conecta tu Telegram con el enlace que te mandó el administrador (o pide que pongan tu @usuario en tu ficha de Equipo).",
+      true,
+    );
+  }
   const respuesta = await confirmarPresencia(persona, clienteId);
-  await responderBoton(q.id, respuesta);
-  if (q.message) {
+  // En el grupo el mensaje es de todos: no se edita; el aviso "X confirmó" llega al grupo.
+  const enGrupo = q.message && q.message.chat.id !== q.from.id;
+  await responderBoton(q.id, respuesta, Boolean(enGrupo));
+  if (q.message && !enGrupo) {
     await editarMensaje(q.message.chat.id, q.message.message_id, `${h(q.message.text ?? "")}\n\n✅ <b>${h(respuesta)}</b>`);
   }
 }
