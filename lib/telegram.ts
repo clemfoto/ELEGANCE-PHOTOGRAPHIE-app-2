@@ -28,6 +28,10 @@ async function api<T = unknown>(metodo: string, cuerpo: Record<string, unknown>)
   return json.result;
 }
 
+let ultimoError = "";
+/** Motivo del último envío fallido (para explicarlo en el registro de automatizaciones). */
+export const ultimoErrorTelegram = () => ultimoError;
+
 /** Envía un mensaje (HTML) con botones opcionales. Devuelve false si no se pudo. */
 export async function enviar(chatId: string, texto: string, botones?: Boton[]): Promise<boolean> {
   if (!chatId || !token()) return false;
@@ -44,6 +48,7 @@ export async function enviar(chatId: string, texto: string, botones?: Boton[]): 
     return true;
   } catch (e) {
     console.error("[telegram] no se pudo enviar a", chatId, e);
+    ultimoError = (e as Error).message;
     return false;
   }
 }

@@ -11,7 +11,7 @@ import {
 import { campoPrincipal, nombreDeRegistro, opciones, textoConEnlaces, textoPrincipal, valorSeleccion } from "@/lib/esquema";
 import { diasHasta, fecha, hoyISO, moneda, texto } from "@/lib/formato";
 import { aNumero } from "@/lib/lista";
-import { chatVideos, enviar, enviarAdmins, h } from "@/lib/telegram";
+import { chatVideos, enviar, enviarAdmins, h, ultimoErrorTelegram } from "@/lib/telegram";
 import { AUTOMATIZACIONES as A, DECISIONES, EQUIPO, GALERIAS, TABLAS, ZONA_HORARIA } from "@/config/galerias";
 
 /*
@@ -189,6 +189,7 @@ export async function procesarClientes(base: string): Promise<string[]> {
           [{ texto: "✅ Confirmo mi presencia", datos: `c:${r.id}` }],
         );
         if (ok) nuevos.push(id);
+        else log.push(`⚠️ No se pudo invitar a ${p.nombre} (${nombre}): ${ultimoErrorTelegram()}`);
       }
       if (nuevos.length) {
         cambios[C.clienteInvitados] = [...invitados, ...nuevos];

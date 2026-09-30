@@ -1,15 +1,16 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
 import { actualizarRegistro, getRegistrosSinCache, tagTabla } from "@/lib/airtable";
 import {
   confirmarPresencia,
+  procesarClientes,
   etiquetaEvento,
   pendientesDeConfirmar,
   personaPorChat,
   personaPorTelegram,
   marcarVideoEntregado,
 } from "@/lib/automatizaciones";
-import { chatVideos, editarMensaje, enviar, h, igualSeguro, leerCodigoVinculo, responderBoton, secretoWebhook } from "@/lib/telegram";
+import { chatVideos, editarMensaje, enviar, enviarAdmins, h, igualSeguro, leerCodigoVinculo, responderBoton, secretoWebhook } from "@/lib/telegram";
 import { AUTOMATIZACIONES as A, EQUIPO, MARCA } from "@/config/galerias";
 
 type Update = {
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
   const u = (await req.json()) as Update;
   try {
     if (u.callback_query) await boton(u.callback_query);
-    else if (u.message?.text) await mensaje(u.message as Required<Update>["message"] & { text: string });
+    else if (u.message?.text) await mensaje(u.message as Required<Update>["message"] & { text: string }, req.nextUrl.origin);
   } catch (e) {
     console.error("[telegram] error procesando update", e);
   }
@@ -79,7 +80,7 @@ async function botonVideo(q: NonNullable<Update["callback_query"]>, videoId: str
   }
 }
 
-async function mensaje(m: { chat: { id: number; type: string }; from?: { id: number }; text: string }) {
+async function mensaje(m: { chat: { id: number; type: string }; from?: { id: number }; text: string }, base: string) {
   const chat = String(m.chat.id);
   const texto = m.text.trim();
 
@@ -106,6 +107,16 @@ async function mensaje(m: { chat: { id: number; type: string }; from?: { id: num
     await actualizarRegistro(EQUIPO.tabla, equipoId, { [A.campos.telegramChatId]: chat });
     revalidateTag(tagTabla(EQUIPO.tabla), { expire: 0 });
     const nombre = String(regs.find((r) => r.id === equipoId)?.fields[EQUIPO.nombre] ?? "");
+    const yaEstaba = String(regs.find((r) => r.id === equipoId)?.fields[A.campos.telegramChatId] ?? "") === chat;
+    after(async () => {
+      try {
+        if (!yaEstaba) await enviarAdmins(`🔗 <b>${h(nombre || "Alguien del equipo")}</b> conectó su Telegram a la app.`);
+        // Le llegan enseguida las invitaciones pendientes de sus próximos eventos.
+        await procesarClientes(base);
+      } catch (e) {
+        console.error("[telegram] tras conectar", e);
+      }
+    });
     return enviar(
       chat,
       `✅ Listo${nombre ? `, ${h(nombre.split(" ")[0])}` : ""}. Tu Telegram quedó conectado.\nAquí recibirás tus eventos para confirmar y los recordatorios de entrega.`,
