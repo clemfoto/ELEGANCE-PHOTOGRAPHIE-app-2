@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getUsuario } from "@/lib/auth";
 import { esAdmin } from "@/lib/esquema";
 import {
+  avisosVideos,
   informeMensual,
   procesarClientes,
   recordatoriosEntrega,
@@ -33,7 +34,7 @@ async function manejar(req: NextRequest) {
   try {
     switch (tarea) {
       case "frecuente":
-        log.push(...(await procesarClientes(base)));
+        log.push(...(await procesarClientes(base)), ...(await avisosVideos(base)));
         break;
       case "diaria":
         log.push(...(await recordatoriosEntrega()), ...(await recordatoriosLeads(base)));

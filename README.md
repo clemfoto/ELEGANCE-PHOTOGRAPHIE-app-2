@@ -32,7 +32,10 @@ Para probar una invitación: `/registro` con `fede@elegance.test` y el código `
 ### Variables de Telegram (automatizaciones)
 
 - `TELEGRAM_BOT_TOKEN`: token del bot creado con @BotFather.
-- `TELEGRAM_ADMIN_CHAT_ID`: ID del grupo de administradores (añade el bot al grupo y escribe `/id`).
+- `TELEGRAM_ADMIN_CHAT_ID`: grupo "Eventos Elegance" (`-5184336877`).
+- `TELEGRAM_VIDEOS_CHAT_ID`: grupo "VIDEOS ELEGANCE" (`-1003944478257`).
+
+**Al pasar de Make a la app:** apagar en Make los escenarios ELEGANCE APP 1/2 y VIDEOS ELEGANCE 1/2 y, justo después, en la app → Más → Automatizaciones → **Conectar el bot** (el bot solo puede enviar sus botones a un sitio a la vez).
 
 Después: app → Más → Automatizaciones → **Conectar el bot** (una vez). Cada persona conecta su Telegram en Más → **Conectar Telegram**.
 Las tareas programadas (`netlify/functions/auto-*.mjs`) solo corren en el despliegue de producción de Netlify.

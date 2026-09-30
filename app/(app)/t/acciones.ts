@@ -16,7 +16,7 @@ import {
 import { requireUsuario, type Usuario } from "@/lib/auth";
 import { campo, campoVisible, esAdmin, esSoloLectura, puedeVerTabla, rutaTabla, tablaPorId, valorSeleccion } from "@/lib/esquema";
 import { localAIso } from "@/lib/formato";
-import { moverEntregas, procesarClientes } from "@/lib/automatizaciones";
+import { avisosVideos, moverEntregas, procesarClientes } from "@/lib/automatizaciones";
 import { telegramConfigurado } from "@/lib/telegram";
 import { DECISIONES, EQUIPO, GALERIAS, TABLAS } from "@/config/galerias";
 
@@ -32,6 +32,19 @@ async function automatizarCliente(clienteId: string, fechaAntes: unknown, fechaD
       if (telegramConfigurado()) await procesarClientes(base);
     } catch (e) {
       console.error("[automatizaciones] tras guardar cliente", e);
+    }
+  });
+}
+
+/** Video nuevo desde la app: se avisa al grupo de videos enseguida (sin esperar a la tarea programada). */
+async function automatizarVideo() {
+  const h = await headers();
+  const base = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  after(async () => {
+    try {
+      if (telegramConfigurado()) await avisosVideos(base);
+    } catch (e) {
+      console.error("[automatizaciones] tras crear video", e);
     }
   });
 }
@@ -135,6 +148,7 @@ export async function guardarRegistro(
   }
   refrescar(t);
   if (t.id === TABLAS.clientes && id) await automatizarCliente(id, fechaAntes, fields[campoFecha]);
+  if (t.id === TABLAS.entrega && !recordId) await automatizarVideo();
   redirect(`${rutaTabla(t)}/${id}`);
 }
 

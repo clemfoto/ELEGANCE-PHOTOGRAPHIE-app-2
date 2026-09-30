@@ -9,6 +9,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 const token = () => process.env.TELEGRAM_BOT_TOKEN ?? "";
 export const chatAdmin = () => process.env.TELEGRAM_ADMIN_CHAT_ID ?? "";
+/** Grupo "VIDEOS ELEGANCE" (si no se configura, los avisos de videos van a los administradores). */
+export const chatVideos = () => process.env.TELEGRAM_VIDEOS_CHAT_ID || chatAdmin();
 export const telegramConfigurado = () => Boolean(token());
 
 export type Boton = { texto: string; datos: string };

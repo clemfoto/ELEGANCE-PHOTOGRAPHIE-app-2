@@ -6,8 +6,9 @@ import {
   etiquetaEvento,
   pendientesDeConfirmar,
   personaPorChat,
+  marcarVideoEntregado,
 } from "@/lib/automatizaciones";
-import { editarMensaje, enviar, h, igualSeguro, leerCodigoVinculo, responderBoton, secretoWebhook } from "@/lib/telegram";
+import { chatVideos, editarMensaje, enviar, h, igualSeguro, leerCodigoVinculo, responderBoton, secretoWebhook } from "@/lib/telegram";
 import { AUTOMATIZACIONES as A, EQUIPO, MARCA } from "@/config/galerias";
 
 type Update = {
@@ -39,6 +40,9 @@ export async function POST(req: NextRequest) {
 }
 
 async function boton(q: NonNullable<Update["callback_query"]>) {
+  // "v:<id>" = marcar video entregado. "entregado|<id>" son los botones que dejó Make en el grupo.
+  const video = /^(?:v:|entregado\|)(rec[A-Za-z0-9]{14})$/.exec(q.data ?? "");
+  if (video) return botonVideo(q, video[1]);
   const [tipo, clienteId] = (q.data ?? "").split(":");
   if (tipo !== "c" || !clienteId) return responderBoton(q.id, "Acción no reconocida.");
   const persona = await personaPorChat(String(q.from.id));
@@ -47,6 +51,22 @@ async function boton(q: NonNullable<Update["callback_query"]>) {
   await responderBoton(q.id, respuesta);
   if (q.message) {
     await editarMensaje(q.message.chat.id, q.message.message_id, `${h(q.message.text ?? "")}\n\n✅ <b>${h(respuesta)}</b>`);
+  }
+}
+
+/** Botón "✅ MARCAR COMO ENTREGADO" del grupo de videos. */
+async function botonVideo(q: NonNullable<Update["callback_query"]>, videoId: string) {
+  // Solo desde el grupo de videos o por alguien del equipo con Telegram conectado.
+  const desdeGrupo = q.message && String(q.message.chat.id) === chatVideos();
+  if (!desdeGrupo && !(await personaPorChat(String(q.from.id)))) return responderBoton(q.id, "No tienes permiso para esto.");
+  const r = await marcarVideoEntregado(videoId);
+  if (!r) return responderBoton(q.id, "Ese video ya no existe en la app.");
+  await responderBoton(q.id, r.yaEstaba ? "Ya estaba entregado." : "Marcado como entregado ✅");
+  if (q.message) {
+    await editarMensaje(q.message.chat.id, q.message.message_id, `${h(q.message.text ?? "")}\n\n✅ <b>ENTREGADO</b>`);
+  }
+  if (!r.yaEstaba) {
+    await enviar(chatVideos(), `✅ <b>VIDEO ENTREGADO</b>\n\nEl video de ${h(r.nombre)} fue marcado como ENTREGADO 🎬`);
   }
 }
 

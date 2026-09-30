@@ -22,8 +22,9 @@ App interna de gestión para Elegance Photographie (fotografía y video de bodas
 AIRTABLE_TOKEN=            # Personal Access Token con scopes: data.records:read, data.records:write, schema.bases:read
 AIRTABLE_BASE_ID=appV0PordtxxqzY5C
 AUTH_SECRET=
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_ADMIN_CHAT_ID=
+TELEGRAM_BOT_TOKEN=          # token de @Eleganceapp_bot
+TELEGRAM_ADMIN_CHAT_ID=      # grupo "Eventos Elegance": -5184336877
+TELEGRAM_VIDEOS_CHAT_ID=     # grupo "VIDEOS ELEGANCE": -1003944478257
 ```
 
 ### Límites de Airtable a tener en cuenta
@@ -99,13 +100,16 @@ Navegación móvil: barra inferior con Inicio, Clientes, Tareas, Entrega, Leads 
 
 ## Automatizaciones
 
-Viven en la app (`lib/automatizaciones.ts`, `lib/telegram.ts`), no en Make. Las ejecutan tareas programadas de Netlify (`netlify/functions/auto-*.mjs`) que llaman a `/api/automatizaciones`; el bot recibe mensajes en `/api/telegram`. Parámetros en `AUTOMATIZACIONES` de `config/galerias.ts`.
+Viven en la app (`lib/automatizaciones.ts`, `lib/telegram.ts`) y sustituyen a los escenarios de Make "ELEGANCE APP 1/2" y "VIDEOS ELEGANCE 1/2". Las ejecutan tareas programadas de Netlify (`netlify/functions/auto-*.mjs`) que llaman a `/api/automatizaciones`; el bot (@Eleganceapp_bot) recibe mensajes y botones en `/api/telegram`. Parámetros en `AUTOMATIZACIONES` de `config/galerias.ts`.
 
-- Nuevo cliente → aviso al grupo de administradores y entrega creada a 9 semanas del evento; si cambia la fecha del evento, la entrega pendiente se mueve.
-- Team members → invitación por Telegram con botón (o respuesta "confirmo"); se guarda en `Clientes.Confirmados` y se avisa a administradores.
-- Entregas → aviso al responsable 7 días antes (o a administradores si no hay responsable con Telegram).
+- Nuevo cliente → aviso al grupo de administradores ("Eventos Elegance", `TELEGRAM_ADMIN_CHAT_ID`) con fecha, venue, servicios, team, solicitudes y estado. (Antes ELEGANCE APP 1.)
+- Cliente que pasa a CONFIRMADO → aviso al mismo grupo, una sola vez (`Aviso confirmado`). (Antes ELEGANCE APP 2.)
+- Video nuevo en VIDEOS → mensaje al grupo "VIDEOS ELEGANCE" (`TELEGRAM_VIDEOS_CHAT_ID`) con los cambios y el botón "✅ MARCAR COMO ENTREGADO"; al tocarlo, el video pasa a ENTREGADO y se avisa en el grupo. También funcionan los botones antiguos de Make (`entregado|rec…`). (Antes VIDEOS ELEGANCE 1 y 2.)
+- Team members → invitación por Telegram con botón (o respuesta "confirmo"); se guarda en `Clientes.Confirmados`.
+- Videos → aviso al responsable 7 días antes de la fecha de entrega.
 - Leads → recordatorio a administradores a los 7, 14 y 21 días para el 2º, 3º y 4º contacto.
 - Día 1 de cada mes → informe contable por Telegram al grupo de administradores.
+- La entrega automática a 9 semanas de Dreamcatcher está desactivada (`crearEntregaAuto: false`): en Elegance, VIDEOS son videos con cambios pedidos.
 - Campos internos ocultos en la app: `CAMPOS_OCULTOS`.
 
 Trabajar fase por fase, con una versión desplegada y probable en el móvil al final de cada una.

@@ -8,10 +8,10 @@ import {
   tagTabla,
   type AirRecord,
 } from "@/lib/airtable";
-import { campoPrincipal, nombreDeRegistro, opciones, textoPrincipal, valorSeleccion } from "@/lib/esquema";
+import { campoPrincipal, nombreDeRegistro, opciones, textoConEnlaces, textoPrincipal, valorSeleccion } from "@/lib/esquema";
 import { diasHasta, fecha, hoyISO, moneda, texto } from "@/lib/formato";
 import { aNumero } from "@/lib/lista";
-import { enviar, enviarAdmins, h } from "@/lib/telegram";
+import { chatVideos, enviar, enviarAdmins, h } from "@/lib/telegram";
 import { AUTOMATIZACIONES as A, DECISIONES, EQUIPO, GALERIAS, TABLAS, ZONA_HORARIA } from "@/config/galerias";
 
 /*
@@ -76,7 +76,11 @@ const nombreCliente = (r: AirRecord) => textoPrincipal(r.fields[str(gCli.nombre)
 
 export async function procesarClientes(base: string): Promise<string[]> {
   const log: string[] = [];
-  const [clientes, personas] = await Promise.all([getRegistrosSinCache(TABLAS.clientes), equipo()]);
+  const [clientes, personas, servicios] = await Promise.all([
+    getRegistrosSinCache(TABLAS.clientes),
+    equipo(),
+    textoConEnlaces(TABLAS.clientes, str(gCli.servicio)),
+  ]);
   const hoy = hoyISO();
   let entregasCreadas = false;
 
@@ -88,6 +92,9 @@ export async function procesarClientes(base: string): Promise<string[]> {
     const team = ids(f[str(gCli.team)]);
     const cambios: Record<string, unknown> = {};
 
+    const estados = opciones(f[str(gCli.estado)]);
+    const confirmado = estados.includes(A.estadoConfirmado);
+
     // Aviso al grupo de administradores (una sola vez por cliente).
     if (f[C.clienteNotificado] !== true) {
       const sinTelegram = team.filter((id) => !personas.get(id)?.chatId).map((id) => personas.get(id)?.nombre ?? "?");
@@ -97,8 +104,10 @@ export async function procesarClientes(base: string): Promise<string[]> {
           `🎬 <b>Nuevo cliente: ${h(nombre)}</b>`,
           `📅 ${h(fecha(fechaEvento) || "Sin fecha")}`,
           `📍 ${h(texto(f[str(gCli.venue)]) || "Sin venue")}`,
+          servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
           `💰 ${h(precio || "Sin precio")}`,
           `👥 ${h(nombres(team, personas))}`,
+          estados.length ? `🔵 ${h(estados.join(", "))}` : "",
           f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
           sinTelegram.length ? `\n⚠️ Sin Telegram conectado: ${h(sinTelegram.join(", "))}` : "",
           `\n<a href="${base}/t/clientes/${r.id}">Abrir en la app</a>`,
@@ -108,11 +117,13 @@ export async function procesarClientes(base: string): Promise<string[]> {
       );
       if (ok) {
         cambios[C.clienteNotificado] = true;
+        // Si ya llega confirmado, el aviso de nuevo cliente vale también como aviso de confirmación.
+        if (confirmado) cambios[C.clienteAvisoConfirmado] = true;
         log.push(`Aviso de nuevo cliente: ${nombre}`);
       }
 
-      // Entrega automática: 9 semanas después del evento.
-      if (fechaEvento && ids(f[C.clienteEntrega]).length === 0) {
+      // Entrega automática: N semanas después del evento (si está activada).
+      if (A.crearEntregaAuto && fechaEvento && ids(f[C.clienteEntrega]).length === 0) {
         await crearRegistro(TABLAS.entrega, {
           [str(gEnt.cliente)]: [r.id],
           [str(gEnt.fecha)]: sumarDias(fechaEvento, A.semanasEntrega * 7),
@@ -120,6 +131,27 @@ export async function procesarClientes(base: string): Promise<string[]> {
         });
         entregasCreadas = true;
         log.push(`Entrega creada para ${nombre}`);
+      }
+    }
+
+    // Aviso de cliente CONFIRMADO (una vez), como hacía el escenario "ELEGANCE APP 2" de Make.
+    else if (confirmado && f[C.clienteAvisoConfirmado] !== true) {
+      const ok = await enviarAdmins(
+        [
+          `✅ <b>Cliente confirmado: ${h(nombre)}</b>`,
+          `📅 ${h(fecha(fechaEvento) || "Sin fecha")}`,
+          `📍 ${h(texto(f[str(gCli.venue)]) || "Sin venue")}`,
+          servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
+          `👥 ${h(nombres(team, personas))}`,
+          f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
+          `\n<a href="${base}/t/clientes/${r.id}">Abrir en la app</a>`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+      if (ok) {
+        cambios[C.clienteAvisoConfirmado] = true;
+        log.push(`Aviso de cliente confirmado: ${nombre}`);
       }
     }
 
@@ -370,4 +402,76 @@ export async function informeMensual(mes = mesAnterior()): Promise<string[]> {
 
   await enviarAdmins(`📊 <b>Informe contable · ${h(nombreMes(mes))}</b>\n\n<pre>${h(detalle)}</pre>`);
   return [`Informe de ${mes} enviado por Telegram.`];
+}
+
+/* ------------------------------------------------------------------ */
+/* Videos: aviso al grupo y botón "Marcar como entregado"               */
+/* (antes escenarios "VIDEOS ELEGANCE 1 y 2" de Make)                   */
+/* ------------------------------------------------------------------ */
+
+const botonEntregado = (id: string) => [{ texto: "✅ MARCAR COMO ENTREGADO", datos: `v:${id}` }];
+
+/** Manda cada video nuevo al grupo de videos, una sola vez, con el botón para marcarlo entregado. */
+export async function avisosVideos(base: string): Promise<string[]> {
+  const log: string[] = [];
+  if (!chatVideos()) return log;
+  const [videos, clientes, nombreVideo] = await Promise.all([
+    getRegistrosSinCache(TABLAS.entrega),
+    getRegistrosSinCache(TABLAS.clientes),
+    nombreDeRegistro(TABLAS.entrega),
+  ]);
+  for (const v of videos) {
+    const f = v.fields;
+    if (f[C.videoAviso] === true) continue;
+    const status = opciones(f[str(gEnt.status)]);
+    const entregado = status.includes(A.estadoVideoEntregado);
+    // Un registro vacío (recién creado en Airtable) se espera a que tenga nombre o cliente.
+    const cliente = clientes.find((c) => ids(f[str(gEnt.cliente)]).includes(c.id));
+    const nombre = (cliente ? nombreCliente(cliente) : "") || nombreVideo(v);
+    if (!nombre) continue;
+    if (entregado) {
+      await actualizarRegistro(TABLAS.entrega, v.id, { [C.videoAviso]: true });
+      continue;
+    }
+    const adjuntos = Array.isArray(f["CAMBIOS DESEADOS"]) ? (f["CAMBIOS DESEADOS"] as { url?: string; filename?: string }[]) : [];
+    const ok = await enviar(
+      chatVideos(),
+      [
+        `🎬 <b>NUEVO VIDEO PARA CAMBIOS</b>`,
+        `👤 Cliente: ${h(nombre)}`,
+        f[str(gEnt.fecha)] ? `📅 Fecha de entrega: ${h(fecha(f[str(gEnt.fecha)]))}` : "",
+        status.length ? `🔵 Estado: ${h(status.join(", "))}` : "",
+        f[str(gEnt.cambios)] ? `📝 ${h(texto(f[str(gEnt.cambios)]))}` : "",
+        ...adjuntos.filter((a) => a.url).map((a) => `📎 <a href="${h(a.url)}">${h(a.filename || "Cambios")}</a>`),
+        `\n<a href="${base}/t/videos/${v.id}">Abrir en la app</a>`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      botonEntregado(v.id),
+    );
+    if (ok) {
+      await actualizarRegistro(TABLAS.entrega, v.id, { [C.videoAviso]: true });
+      log.push(`Video enviado al grupo: ${nombre}`);
+    }
+  }
+  if (log.length) invalidar(TABLAS.entrega);
+  return log;
+}
+
+/** Botón de Telegram: marca el video como ENTREGADO y devuelve el nombre para el mensaje. */
+export async function marcarVideoEntregado(id: string): Promise<{ nombre: string; yaEstaba: boolean } | null> {
+  const videos = await getRegistrosSinCache(TABLAS.entrega);
+  const v = videos.find((x) => x.id === id);
+  if (!v) return null;
+  const nombreVideo = await nombreDeRegistro(TABLAS.entrega);
+  const clientes = ids(v.fields[str(gEnt.cliente)]).length ? await getRegistrosSinCache(TABLAS.clientes) : [];
+  const cliente = clientes.find((c) => ids(v.fields[str(gEnt.cliente)]).includes(c.id));
+  const nombre = (cliente ? nombreCliente(cliente) : "") || nombreVideo(v) || "este cliente";
+  const actual = opciones(v.fields[str(gEnt.status)]);
+  if (actual.includes(A.estadoVideoEntregado)) return { nombre, yaEstaba: true };
+  await actualizarRegistro(TABLAS.entrega, id, {
+    [str(gEnt.status)]: await valorSeleccion(TABLAS.entrega, str(gEnt.status), [A.estadoVideoEntregado]),
+  });
+  invalidar(TABLAS.entrega);
+  return { nombre, yaEstaba: false };
 }

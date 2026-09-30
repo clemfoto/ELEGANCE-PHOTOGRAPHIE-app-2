@@ -51,6 +51,7 @@ const esquema = {
     ["fldCliLeads00000", "Leads", "multipleRecordLinks", link(T.leads, "fldLeaCliente000")],
     ["fldCliConta00000", "Contabilidad", "multipleRecordLinks", link(T.conta, "fldConCliente000")],
     ["fldCliGastos0000", "Gastos", "multipleRecordLinks", link(T.gastos, "fldGasCliente000")],
+    ["fldCliAvisoConf0", "Aviso confirmado", "checkbox"],
   ]],
   [T.tareas]: ["Tareas", [
     ["fldTarTarea00000", "tarea", "multilineText"],
@@ -73,6 +74,7 @@ const esquema = {
     ["fldVidLink000000", "Link de Entrega", "url"],
     ["fldVidNotas00000", "Notas de cambios", "multilineText"],
     ["fldVidRecord0000", "Recordatorio enviado", "checkbox"],
+    ["fldVidAviso00000", "Aviso enviado", "checkbox"],
   ]],
   [T.leads]: ["Leads", [
     ["fldLeaNombre0000", "nombre del lead", "singleLineText"],

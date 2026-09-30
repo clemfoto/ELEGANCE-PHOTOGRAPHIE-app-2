@@ -77,7 +77,8 @@ export const CAMPOS_OCULTOS: string[] = [
   "Código de invitación",
   "Estado invitación",
   "Clave (cifrada)",
-  "Moneda",
+  "Aviso confirmado",
+  "Aviso enviado",
 ];
 
 /** Campos que la app muestra pero no deja editar en el formulario (se cambian con botones). */
@@ -321,6 +322,15 @@ export const AUTOMATIZACIONES = {
   estadosEntregaHechos: ["ENTREGADO"],
   /** Estados de lead que ya no necesitan recordatorios. */
   estadosLeadCerrados: ["Ganado", "Perdido", "cerrado", "cancelado"],
+  /**
+   * Crear una entrega automática a N semanas de cada cliente nuevo. En Elegance, VIDEOS guarda
+   * los videos con cambios pedidos (no entregas planeadas), así que está desactivado.
+   */
+  crearEntregaAuto: false,
+  /** Estado de cliente que dispara el aviso "cliente confirmado" al grupo de administradores. */
+  estadoConfirmado: "CONFIRMADO",
+  /** Estado de video que pone el botón "Marcar como entregado" de Telegram. */
+  estadoVideoEntregado: "ENTREGADO",
   /** Estado que se pone a una entrega creada automáticamente. */
   estadoEntregaInicial: "EN ESPERA",
   /** Palabras que valen como confirmación escrita en Telegram. */
@@ -334,6 +344,8 @@ export const AUTOMATIZACIONES = {
     clienteEntrega: "Entrega",
     entregaRecordatorio: "Recordatorio enviado",
     leadRecordatorios: "Recordatorios enviados",
+    clienteAvisoConfirmado: "Aviso confirmado",
+    videoAviso: "Aviso enviado",
     contaDeposito: "DEPOSITO",
     contaFechaDeposito: "Fecha Depósito",
     contaTotal: "Monto Total",
