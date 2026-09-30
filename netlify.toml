@@ -1,0 +1,5 @@
+# Netlify: estos valores están también en el código y la documentación (no son secretos por sí solos:
+# sin AIRTABLE_TOKEN ni TELEGRAM_BOT_TOKEN no dan acceso a nada). Se excluyen del escaneo de secretos
+# para que el despliegue no se bloquee aunque se marquen como "secret" en Netlify.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "AIRTABLE_BASE_ID,TELEGRAM_ADMIN_CHAT_ID,TELEGRAM_VIDEOS_CHAT_ID"
