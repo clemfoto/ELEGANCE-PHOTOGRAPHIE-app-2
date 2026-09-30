@@ -1,6 +1,8 @@
 "use server";
 import { forbidden, notFound } from "next/navigation";
 import { updateTag } from "next/cache";
+import { headers } from "next/headers";
+import { reenviarAvisoCliente } from "@/lib/automatizaciones";
 import { actualizarRegistro, getRegistro, tagTabla } from "@/lib/airtable";
 import { requireAdmin } from "@/lib/auth";
 import { opciones, valorSeleccion } from "@/lib/esquema";
@@ -41,3 +43,11 @@ export async function decidirGasto(id: string, aprobado: boolean): Promise<void>
   refrescar(TABLAS.gastos, TABLAS.equipo);
 }
 
+
+/** Reenvía al grupo de eventos el aviso de un cliente, con el botón para confirmar presencia. */
+export async function reenviarAviso(id: string): Promise<void> {
+  await requireAdmin();
+  const h = await headers();
+  const base = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  if (!(await reenviarAvisoCliente(id, base))) throw new Error("No se pudo enviar el aviso a Telegram.");
+}

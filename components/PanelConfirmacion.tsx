@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getRegistros, type AirRecord } from "@/lib/airtable";
 import { Avatar } from "@/components/Valor";
+import BotonAccion from "@/components/BotonAccion";
 import { AUTOMATIZACIONES, EQUIPO, GALERIAS, TABLAS } from "@/config/galerias";
 
 const ids = (v: unknown) => (Array.isArray(v) ? (v as string[]) : []);
@@ -24,8 +25,8 @@ export default async function PanelConfirmacion({ r }: { r: AirRecord }) {
     const conTelegram = Boolean(String(p?.fields[C.telegramChatId] ?? "").trim());
     const estado = confirmados.has(id)
       ? { texto: "Confirmó", clase: "ok" }
-      : invitados.has(id)
-        ? { texto: "Invitado, sin respuesta", clase: "espera" }
+      : !AUTOMATIZACIONES.invitacionesPrivadas || invitados.has(id)
+        ? { texto: "Sin confirmar", clase: "espera" }
         : conTelegram
           ? { texto: "Pendiente de invitar", clase: "espera" }
           : { texto: "Sin Telegram conectado", clase: "sin" };
@@ -55,12 +56,14 @@ export default async function PanelConfirmacion({ r }: { r: AirRecord }) {
           </li>
         ))}
       </ul>
-      {filas.some((f) => !f.conTelegram && f.estado.clase !== "ok") && (
-        <p className="nota-chica">
-          Quien no tiene Telegram conectado puede confirmar con el botón del grupo si su @usuario está en su ficha de
-          Equipo, o conectarlo desde su ficha → «Enviar enlace de Telegram».
-        </p>
-      )}
+      <p className="nota-chica">
+        Cada uno confirma con el botón «Confirmo mi presencia» del mensaje en el grupo de eventos de Telegram.
+      </p>
+      <div className="acciones-acceso">
+        <BotonAccion accion="reenviarAviso" id={r.id} tipo="secundario">
+          Enviar aviso al grupo
+        </BotonAccion>
+      </div>
     </section>
   );
 }

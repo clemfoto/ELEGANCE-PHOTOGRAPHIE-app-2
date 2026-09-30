@@ -74,9 +74,74 @@ const nombres = (lista: string[], personas: Map<string, Persona>) =>
 
 const nombreCliente = (r: AirRecord) => textoPrincipal(r.fields[str(gCli.nombre)]) || "Sin nombre";
 
-/** Botón "Confirmo" en los avisos del grupo: cada team member confirma ahí mismo con un toque. */
-const botonConfirmarGrupo = (r: AirRecord, team: string[], fechaEvento: string) =>
-  team.length && fechaEvento >= hoyISO() ? [{ texto: "✅ Confirmo mi presencia", datos: `c:${r.id}` }] : undefined;
+type TipoAviso = "nuevo" | "confirmado";
+
+/**
+ * Mensaje del grupo para un cliente: datos del evento, el team con quién confirmó y el botón
+ * "Confirmo mi presencia". Se vuelve a generar cada vez que alguien confirma.
+ */
+async function textoAvisoCliente(
+  r: AirRecord,
+  tipo: TipoAviso,
+  base: string,
+  personas?: Map<string, Persona>,
+  servicios?: (v: unknown) => string,
+): Promise<{ texto: string; botones?: { texto: string; datos: string }[] }> {
+  personas ??= await equipo();
+  servicios ??= await textoConEnlaces(TABLAS.clientes, str(gCli.servicio));
+  const f = r.fields;
+  const fechaEvento = typeof f[str(gCli.fecha)] === "string" ? String(f[str(gCli.fecha)]) : "";
+  const team = ids(f[str(gCli.team)]);
+  const confirmados = new Set(ids(f[C.clienteConfirmados]));
+  const estados = opciones(f[str(gCli.estado)]);
+  const futuro = Boolean(fechaEvento) && fechaEvento >= hoyISO();
+  const lineaTeam = team.length
+    ? team.map((id) => `${confirmados.has(id) ? "✅" : "⏳"} ${h(personas.get(id)?.nombre ?? "?")}`).join("\n")
+    : "Sin team asignado";
+  const faltan = team.filter((id) => !confirmados.has(id)).length;
+  const mensaje = [
+    tipo === "nuevo" ? `🎬 <b>Nuevo cliente: ${h(nombreCliente(r))}</b>` : `✅ <b>Cliente confirmado: ${h(nombreCliente(r))}</b>`,
+    `📅 ${h(fecha(fechaEvento) || "Sin fecha")}`,
+    `📍 ${h(texto(f[str(gCli.venue)]) || "Sin venue")}`,
+    servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
+    tipo === "nuevo" ? `💰 ${h(dinero(f[str(gCli.precio)]) || "Sin precio")}` : "",
+    estados.length ? `🔵 ${h(estados.join(", "))}` : "",
+    f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
+    `\n👥 <b>Team</b> (${team.length - faltan}/${team.length} confirmados)\n${lineaTeam}`,
+    futuro && faltan ? `\nTeam: toca el botón para confirmar tu presencia.` : "",
+    `\n<a href="${base}/t/clientes/${r.id}">Abrir en la app</a>`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const botones = futuro && team.length ? [{ texto: "✅ Confirmo mi presencia", datos: `c:${r.id}` }] : undefined;
+  return { texto: mensaje, botones };
+}
+
+async function enviarAvisoCliente(
+  r: AirRecord,
+  tipo: TipoAviso,
+  base: string,
+  personas?: Map<string, Persona>,
+  servicios?: (v: unknown) => string,
+): Promise<boolean> {
+  const m = await textoAvisoCliente(r, tipo, base, personas, servicios);
+  return enviarAdmins(m.texto, m.botones);
+}
+
+/** Reenvía al grupo el aviso de un cliente (botón de la ficha), p. ej. para avisos antiguos sin botón. */
+export async function reenviarAvisoCliente(clienteId: string, base: string): Promise<boolean> {
+  const r = (await getRegistrosSinCache(TABLAS.clientes)).find((x) => x.id === clienteId);
+  if (!r) return false;
+  const tipo = opciones(r.fields[str(gCli.estado)]).includes(A.estadoConfirmado) ? "confirmado" : "nuevo";
+  return enviarAvisoCliente(r, tipo, base);
+}
+
+/** Mensaje del grupo actualizado tras una confirmación (mismo tipo que el original). */
+export async function avisoActualizado(clienteId: string, textoOriginal: string, base: string) {
+  const r = (await getRegistrosSinCache(TABLAS.clientes)).find((x) => x.id === clienteId);
+  if (!r) return null;
+  return textoAvisoCliente(r, textoOriginal.includes("Cliente confirmado") ? "confirmado" : "nuevo", base);
+}
 
 /* ------------------------------------------------------------------ */
 /* 1. Nuevos clientes: aviso a admins, invitaciones y entrega a 9 semanas */
@@ -103,28 +168,9 @@ export async function procesarClientes(base: string): Promise<string[]> {
     const estados = opciones(f[str(gCli.estado)]);
     const confirmado = estados.includes(A.estadoConfirmado);
 
-    // Aviso al grupo de administradores (una sola vez por cliente).
+    // Aviso al grupo de eventos (una sola vez por cliente).
     if (f[C.clienteNotificado] !== true) {
-      const sinTelegram = team.filter((id) => !personas.get(id)?.chatId).map((id) => personas.get(id)?.nombre ?? "?");
-      const precio = dinero(f[str(gCli.precio)]);
-      const ok = await enviarAdmins(
-        [
-          `🎬 <b>Nuevo cliente: ${h(nombre)}</b>`,
-          `📅 ${h(fecha(fechaEvento) || "Sin fecha")}`,
-          `📍 ${h(texto(f[str(gCli.venue)]) || "Sin venue")}`,
-          servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
-          `💰 ${h(precio || "Sin precio")}`,
-          `👥 ${h(nombres(team, personas))}`,
-          estados.length ? `🔵 ${h(estados.join(", "))}` : "",
-          f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
-          sinTelegram.length ? `\n⚠️ Sin Telegram conectado: ${h(sinTelegram.join(", "))}` : "",
-          botonConfirmarGrupo(r, team, fechaEvento) ? `\nTeam: toca el botón para confirmar tu presencia.` : "",
-          `\n<a href="${base}/t/clientes/${r.id}">Abrir en la app</a>`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        botonConfirmarGrupo(r, team, fechaEvento),
-      );
+      const ok = await enviarAvisoCliente(r, "nuevo", base, personas, servicios);
       if (ok) {
         cambios[C.clienteNotificado] = true;
         // Si ya llega confirmado, el aviso de nuevo cliente vale también como aviso de confirmación.
@@ -146,29 +192,15 @@ export async function procesarClientes(base: string): Promise<string[]> {
 
     // Aviso de cliente CONFIRMADO (una vez), como hacía el escenario "ELEGANCE APP 2" de Make.
     else if (confirmado && f[C.clienteAvisoConfirmado] !== true) {
-      const ok = await enviarAdmins(
-        [
-          `✅ <b>Cliente confirmado: ${h(nombre)}</b>`,
-          `📅 ${h(fecha(fechaEvento) || "Sin fecha")}`,
-          `📍 ${h(texto(f[str(gCli.venue)]) || "Sin venue")}`,
-          servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
-          `👥 ${h(nombres(team, personas))}`,
-          f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
-          botonConfirmarGrupo(r, team, fechaEvento) ? `\nTeam: toca el botón para confirmar tu presencia.` : "",
-          `\n<a href="${base}/t/clientes/${r.id}">Abrir en la app</a>`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        botonConfirmarGrupo(r, team, fechaEvento),
-      );
+      const ok = await enviarAvisoCliente(r, "confirmado", base, personas, servicios);
       if (ok) {
         cambios[C.clienteAvisoConfirmado] = true;
         log.push(`Aviso de cliente confirmado: ${nombre}`);
       }
     }
 
-    // Invitaciones a los team members (solo eventos futuros, una vez por persona).
-    if (fechaEvento && fechaEvento >= hoy) {
+    // Invitaciones por privado (solo si está activado; si no, se confirma en el grupo).
+    if (A.invitacionesPrivadas && fechaEvento && fechaEvento >= hoy) {
       const invitados = ids(f[C.clienteInvitados]);
       const confirmados = ids(f[C.clienteConfirmados]);
       const nuevos: string[] = [];
@@ -231,14 +263,48 @@ export async function personaPorChat(chatId: string): Promise<Persona | null> {
  * Quién tocó un botón: por su Telegram conectado o, si aún no lo conectó, por su
  * "Usuario Telegram" de la ficha de Equipo (útil al confirmar desde el grupo).
  */
-export async function personaPorTelegram(userId: string, usuario?: string): Promise<Persona | null> {
+export async function personaPorTelegram(
+  userId: string,
+  usuario?: string,
+  nombre?: string,
+  entre?: string[],
+): Promise<Persona | null> {
   const personas = [...(await equipo()).values()];
   const u = usuarioTg(usuario);
-  return personas.find((p) => p.chatId === userId) ?? (u ? personas.find((p) => p.usuario === u) : undefined) ?? null;
+  const encontrada =
+    personas.find((p) => p.chatId === userId) ?? (u ? personas.find((p) => p.usuario === u) : undefined);
+  if (encontrada) return encontrada;
+  // Último recurso (confirmación desde el grupo): su nombre de Telegram coincide con el de UNA
+  // sola persona del team de ese evento que aún no tiene Telegram conectado. Se guarda el vínculo.
+  const n = simple(nombre);
+  if (!n || !entre) return null;
+  const candidatas = personas.filter(
+    (p) => entre.includes(p.id) && !p.chatId && simple(p.nombre).split(" ")[0] === n.split(" ")[0],
+  );
+  if (candidatas.length !== 1) return null;
+  const p = candidatas[0];
+  await actualizarRegistro(EQUIPO.tabla, p.id, { [C.telegramChatId]: userId });
+  invalidar(EQUIPO.tabla);
+  return { ...p, chatId: userId };
+}
+
+/** "Gabý  López" → "gaby lopez" */
+const simple = (t: unknown) =>
+  String(t ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+
+/** Team del evento (para reconocer a quien confirma desde el grupo). */
+export async function teamDeCliente(clienteId: string): Promise<string[]> {
+  const r = (await getRegistrosSinCache(TABLAS.clientes)).find((x) => x.id === clienteId);
+  return ids(r?.fields[str(gCli.team)]);
 }
 
 /** Marca a la persona como confirmada en el cliente y avisa a los administradores. */
-export async function confirmarPresencia(persona: Persona, clienteId: string): Promise<string> {
+export async function confirmarPresencia(persona: Persona, clienteId: string, avisar = true): Promise<string> {
   const clientes = await getRegistrosSinCache(TABLAS.clientes);
   const r = clientes.find((x) => x.id === clienteId);
   if (!r) return "No encontré ese evento.";
@@ -249,7 +315,7 @@ export async function confirmarPresencia(persona: Persona, clienteId: string): P
 
   await actualizarRegistro(TABLAS.clientes, r.id, { [C.clienteConfirmados]: [...confirmados, persona.id] });
   invalidar(TABLAS.clientes, EQUIPO.tabla);
-  await enviarAdmins(
+  if (avisar) await enviarAdmins(
     `✅ <b>${h(persona.nombre)}</b> confirmó su presencia en <b>${h(nombre)}</b> (${h(fecha(r.fields[str(gCli.fecha)]))}).`,
   );
   return `¡Listo! Confirmaste tu presencia en ${nombre}. 🙌`;

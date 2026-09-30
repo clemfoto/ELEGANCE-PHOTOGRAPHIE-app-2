@@ -8,6 +8,8 @@ import {
   pendientesDeConfirmar,
   personaPorChat,
   personaPorTelegram,
+  avisoActualizado,
+  teamDeCliente,
   marcarVideoEntregado,
 } from "@/lib/automatizaciones";
 import { chatVideos, editarMensaje, enviar, enviarAdmins, h, igualSeguro, leerCodigoVinculo, responderBoton, secretoWebhook } from "@/lib/telegram";
@@ -17,7 +19,7 @@ type Update = {
   message?: { chat: { id: number; type: string }; from?: { id: number }; text?: string };
   callback_query?: {
     id: string;
-    from: { id: number; username?: string };
+    from: { id: number; username?: string; first_name?: string; last_name?: string };
     data?: string;
     message?: { chat: { id: number }; message_id: number; text?: string };
   };
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
   }
   const u = (await req.json()) as Update;
   try {
-    if (u.callback_query) await boton(u.callback_query);
+    if (u.callback_query) await boton(u.callback_query, req.nextUrl.origin);
     else if (u.message?.text) await mensaje(u.message as Required<Update>["message"] & { text: string }, req.nextUrl.origin);
   } catch (e) {
     console.error("[telegram] error procesando update", e);
@@ -41,25 +43,35 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-async function boton(q: NonNullable<Update["callback_query"]>) {
+async function boton(q: NonNullable<Update["callback_query"]>, base: string) {
   // "v:<id>" = marcar video entregado. "entregado|<id>" son los botones que dejó Make en el grupo.
   const video = /^(?:v:|entregado\|)(rec[A-Za-z0-9]{14})$/.exec(q.data ?? "");
   if (video) return botonVideo(q, video[1]);
   const [tipo, clienteId] = (q.data ?? "").split(":");
   if (tipo !== "c" || !clienteId) return responderBoton(q.id, "Acción no reconocida.");
-  const persona = await personaPorTelegram(String(q.from.id), q.from.username);
+  const enGrupo = Boolean(q.message && q.message.chat.id !== q.from.id);
+  const nombreTg = [q.from.first_name, q.from.last_name].filter(Boolean).join(" ");
+  const persona = await personaPorTelegram(
+    String(q.from.id),
+    q.from.username,
+    enGrupo ? nombreTg : undefined,
+    enGrupo ? await teamDeCliente(clienteId) : undefined,
+  );
   if (!persona) {
     return responderBoton(
       q.id,
-      "No te reconozco todavía. Conecta tu Telegram con el enlace que te mandó el administrador (o pide que pongan tu @usuario en tu ficha de Equipo).",
+      "No te reconozco todavía. Pide al administrador que ponga tu @usuario de Telegram en tu ficha de Equipo (o abre el enlace que te mandó).",
       true,
     );
   }
-  const respuesta = await confirmarPresencia(persona, clienteId);
-  // En el grupo el mensaje es de todos: no se edita; el aviso "X confirmó" llega al grupo.
-  const enGrupo = q.message && q.message.chat.id !== q.from.id;
-  await responderBoton(q.id, respuesta, Boolean(enGrupo));
-  if (q.message && !enGrupo) {
+  // En el grupo se actualiza el propio mensaje con quién confirmó (sin mensajes extra).
+  const respuesta = await confirmarPresencia(persona, clienteId, !enGrupo);
+  await responderBoton(q.id, respuesta, enGrupo);
+  if (!q.message) return;
+  if (enGrupo) {
+    const nuevo = await avisoActualizado(clienteId, q.message.text ?? "", base);
+    if (nuevo) await editarMensaje(q.message.chat.id, q.message.message_id, nuevo.texto, nuevo.botones);
+  } else {
     await editarMensaje(q.message.chat.id, q.message.message_id, `${h(q.message.text ?? "")}\n\n✅ <b>${h(respuesta)}</b>`);
   }
 }

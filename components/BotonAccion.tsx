@@ -1,11 +1,12 @@
 "use client";
 import { useState, useTransition } from "react";
-import { aprobarEntrega, decidirGasto } from "@/app/(app)/decisiones";
+import { aprobarEntrega, decidirGasto, reenviarAviso } from "@/app/(app)/decisiones";
 
 const ACCIONES = {
   aprobarEntrega: (id: string) => aprobarEntrega(id),
   aprobarGasto: (id: string) => decidirGasto(id, true),
   rechazarGasto: (id: string) => decidirGasto(id, false),
+  reenviarAviso: (id: string) => reenviarAviso(id),
 };
 
 /** Botón de un toque para las decisiones (visto bueno, aprobar o rechazar un gasto). */

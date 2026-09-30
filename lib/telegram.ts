@@ -41,9 +41,7 @@ export async function enviar(chatId: string, texto: string, botones?: Boton[]): 
       text: texto,
       parse_mode: "HTML",
       disable_web_page_preview: true,
-      ...(botones?.length
-        ? { reply_markup: { inline_keyboard: botones.map((b) => [{ text: b.texto, callback_data: b.datos }]) } }
-        : {}),
+      ...teclado(botones),
     });
     return true;
   } catch (e) {
@@ -63,10 +61,19 @@ export async function responderBoton(callbackId: string, texto: string, alerta =
   await api("answerCallbackQuery", { callback_query_id: callbackId, text: texto, show_alert: alerta }).catch(() => {});
 }
 
-export async function editarMensaje(chatId: number | string, mensajeId: number, texto: string) {
-  await api("editMessageText", { chat_id: chatId, message_id: mensajeId, text: texto, parse_mode: "HTML" }).catch(
-    () => {},
-  );
+const teclado = (botones?: Boton[]) =>
+  botones?.length ? { reply_markup: { inline_keyboard: botones.map((b) => [{ text: b.texto, callback_data: b.datos }]) } } : {};
+
+/** Cambia el texto de un mensaje ya enviado (conserva los botones que se le pasen). */
+export async function editarMensaje(chatId: number | string, mensajeId: number, texto: string, botones?: Boton[]) {
+  await api("editMessageText", {
+    chat_id: chatId,
+    message_id: mensajeId,
+    text: texto,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    ...teclado(botones),
+  }).catch(() => {});
 }
 
 let usuarioBot: string | null = null;

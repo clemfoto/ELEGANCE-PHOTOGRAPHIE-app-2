@@ -316,6 +316,12 @@ export const AUTOMATIZACIONES = {
   diasAvisoEntrega: 7,
   /** Días entre cada contacto de un lead (2º, 3º y 4º). */
   diasEntreContactos: 7,
+  /**
+   * true: cada team member recibe su invitación por privado (sistema de Dreamcatcher).
+   * false: todo va al grupo de eventos (TELEGRAM_ADMIN_CHAT_ID), donde está todo el equipo,
+   * y cada uno confirma con el botón del mensaje, que se actualiza con quién confirmó.
+   */
+  invitacionesPrivadas: false,
   /** Estados de cliente que no generan avisos ni invitaciones. */
   estadosClienteIgnorados: ["CANCELADO"],
   /** Estados de entrega que cuentan como entregada. */
