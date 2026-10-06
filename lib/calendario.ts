@@ -1,15 +1,15 @@
 import "server-only";
 import { getEsquema, getRegistros, type AirRecord } from "@/lib/airtable";
 import type { Usuario } from "@/lib/auth";
-import { esAdmin, nombreDeRegistro, nombresDe, opciones, puedeVerTabla, rutaTabla, textoConEnlaces } from "@/lib/esquema";
+import { esAdmin, esPropietario, nombreDeRegistro, nombresDe, opciones, puedeVerTabla, rutaTabla, textoConEnlaces } from "@/lib/esquema";
 import { dinero, texto } from "@/lib/formato";
 import { aNumero } from "@/lib/lista";
 import { firmaCorta } from "@/lib/token";
-import { AUTOMATIZACIONES, GALERIAS, MARCA, TABLAS } from "@/config/galerias";
+import { AUTOMATIZACIONES, GALERIAS, MARCA, PRIVADO, TABLAS } from "@/config/galerias";
 
 /** Todo lo que tiene fecha en la base, como una sola lista de eventos (calendario de la app y feed .ics). */
 
-export type TipoEvento = "evento" | "lead" | "entrega" | "tarea" | "pago";
+export type TipoEvento = "evento" | "lead" | "entrega" | "tarea" | "pago" | "privado";
 
 export type EventoCal = {
   uid: string;
@@ -27,6 +27,7 @@ export const TIPOS: Record<TipoEvento, { nombre: string; color: string }> = {
   entrega: { nombre: "Entregas", color: "#55336a" },
   tarea: { nombre: "Vencimientos", color: "#9a3b2e" },
   pago: { nombre: "Cobros", color: "#2f5226" },
+  privado: { nombre: "Mi calendario", color: "#7a6a8e" },
 };
 
 const ids = (v: unknown) => (Array.isArray(v) ? (v as string[]) : []);
@@ -134,6 +135,24 @@ export async function eventosCalendario(u: Usuario): Promise<EventoCal[]> {
       detalle: `Balance pendiente ${dinero(pendiente)}`,
       href: ruta(TABLAS.contabilidad, r.id),
     });
+  }
+
+  // Apartado privado: "Mi calendario" solo sale en el calendario (y el .ics) del dueño.
+  const pC = PRIVADO.calendario;
+  if (esPropietario(u) && esquema.some((t) => t.id === pC.tabla)) {
+    const nombrePrivado = await nombreDeRegistro(pC.tabla);
+    for (const r of await getRegistros(pC.tabla)) {
+      const d = r.fields[pC.fecha];
+      if (!esDia(d)) continue;
+      out.push({
+        uid: r.id,
+        tipo: "privado",
+        dia: d.slice(0, 10),
+        titulo: nombrePrivado(r) || "Evento privado",
+        detalle: [texto(r.fields[pC.hora]), texto(r.fields[pC.lugar]), texto(r.fields[pC.tipo])].filter(Boolean).join(" · "),
+        href: ruta(pC.tabla, r.id),
+      });
+    }
   }
 
   return out.sort((a, b) => a.dia.localeCompare(b.dia));

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { requireUsuario } from "@/lib/auth";
-import { esAdmin } from "@/lib/esquema";
+import { esAdmin, esPropietario } from "@/lib/esquema";
 import { TIPOS, eventosCalendario, tokenCalendario, type EventoCal } from "@/lib/calendario";
 import { hoyISO, mayuscula, sumarDias } from "@/lib/formato";
 import CopiarEnlace from "@/components/CopiarEnlace";
@@ -64,7 +64,7 @@ export default async function Calendario({ searchParams }: Props) {
 
       <div className="cal-leyenda">
         {Object.entries(TIPOS)
-          .filter(([k]) => esAdmin(u) || !["lead", "pago"].includes(k))
+          .filter(([k]) => (esAdmin(u) || !["lead", "pago"].includes(k)) && (k !== "privado" || esPropietario(u)))
           .map(([k, t]) => (
           <span key={k}>
             <i style={{ background: t.color }} />

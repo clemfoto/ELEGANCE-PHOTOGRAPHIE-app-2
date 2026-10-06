@@ -4,7 +4,9 @@ import { esAdmin } from "@/lib/esquema";
 import {
   avisosVideos,
   informeMensual,
+  informePrivado,
   procesarClientes,
+  recordatoriosPrivados,
   recordatoriosEntrega,
   recordatoriosLeads,
 } from "@/lib/automatizaciones";
@@ -37,11 +39,13 @@ async function manejar(req: NextRequest) {
         log.push(...(await procesarClientes(base)), ...(await avisosVideos(base)));
         break;
       case "diaria":
-        log.push(...(await recordatoriosEntrega()), ...(await recordatoriosLeads(base)));
+        log.push(...(await recordatoriosEntrega()), ...(await recordatoriosLeads(base)), ...(await recordatoriosPrivados()));
         break;
-      case "mensual":
-        log.push(...(await informeMensual(req.nextUrl.searchParams.get("mes") ?? undefined)));
+      case "mensual": {
+        const mes = req.nextUrl.searchParams.get("mes") ?? undefined;
+        log.push(...(await informeMensual(mes)), ...(await informePrivado(mes)));
         break;
+      }
       case "webhook":
         await configurarWebhook(`${base}/api/telegram`);
         log.push(`Bot conectado a ${base}/api/telegram`);

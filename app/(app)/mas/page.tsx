@@ -12,7 +12,7 @@ export const metadata = { title: "Más" };
 
 export default async function Mas() {
   const u = await requireUsuario();
-  const { mas } = await navegacion(u);
+  const { mas, privado } = await navegacion(u);
   const bot = await nombreBot();
   const yo = (await getRegistros(EQUIPO.tabla)).find((r) => r.id === u.id);
   const conectado = Boolean(String(yo?.fields[AUTOMATIZACIONES.campos.telegramChatId] ?? "").trim());
@@ -33,6 +33,22 @@ export default async function Mas() {
             </Link>
           ))}
         </div>
+      )}
+
+      {privado.length > 0 && (
+        <>
+          <h2 className="seccion-titulo menu-grupo">🔒 Privado</h2>
+          <p className="muted menu-grupo-ayuda">Solo lo ves tú.</p>
+          <div className="lista-menu">
+            {privado.map((i) => (
+              <Link key={i.id} href={i.href} className="menu-item">
+                <Icono id={i.id} />
+                <span>{i.titulo}</span>
+                <span className="flecha" aria-hidden>›</span>
+              </Link>
+            ))}
+          </div>
+        </>
       )}
 
       <section className="tarjeta bloque">

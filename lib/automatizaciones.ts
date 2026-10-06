@@ -12,7 +12,7 @@ import { campoPrincipal, nombreDeRegistro, opciones, textoConEnlaces, textoPrinc
 import { diasHasta, fecha, hoyISO, moneda, texto } from "@/lib/formato";
 import { aNumero } from "@/lib/lista";
 import { chatVideos, enviar, enviarAdmins, h, ultimoErrorTelegram } from "@/lib/telegram";
-import { AUTOMATIZACIONES as A, DECISIONES, EQUIPO, GALERIAS, TABLAS, ZONA_HORARIA } from "@/config/galerias";
+import { AUTOMATIZACIONES as A, DECISIONES, EQUIPO, GALERIAS, PRIVADO, TABLAS, ZONA_HORARIA } from "@/config/galerias";
 
 /*
  * Automatizaciones. Se ejecutan desde /api/automatizaciones (tareas programadas de Netlify)
@@ -491,6 +491,68 @@ export async function informeMensual(mes = mesAnterior()): Promise<string[]> {
 
   await enviarAdmins(`📊 <b>Informe contable · ${h(nombreMes(mes))}</b>\n\n<pre>${h(detalle)}</pre>`);
   return [`Informe de ${mes} enviado por Telegram.`];
+}
+
+/* ------------------------------------------------------------------ */
+/* 6. Apartado privado del dueño (PRIVADO)                              */
+/* Solo se manda al Telegram personal de cada dueño, nunca a los grupos. */
+/* ------------------------------------------------------------------ */
+
+/** Dueños con Telegram conectado. */
+async function chatsPropietarios(): Promise<string[]> {
+  const personas = await equipo();
+  return PRIVADO.propietarios.map((id) => personas.get(id)?.chatId ?? "").filter(Boolean);
+}
+
+/** Recordatorio de "Mi calendario" unos días antes (PRIVADO.calendario.diasAviso). */
+export async function recordatoriosPrivados(): Promise<string[]> {
+  const pC = PRIVADO.calendario;
+  if (!PRIVADO.propietarios.length || !(await getEsquema()).some((t) => t.id === pC.tabla)) return [];
+  const chats = await chatsPropietarios();
+  if (!chats.length) return ["Mi calendario: el dueño no tiene Telegram conectado."];
+  const log: string[] = [];
+  const nombre = await nombreDeRegistro(pC.tabla);
+  for (const r of await getRegistrosSinCache(pC.tabla)) {
+    const f = r.fields;
+    if (f[pC.recordatorio] === true) continue;
+    const d = diasHasta(f[pC.fecha]);
+    if (d == null || d < 0 || d > pC.diasAviso) continue;
+    const cuando = d === 0 ? "Hoy" : d === 1 ? "Mañana" : `En ${d} días`;
+    const msg = [
+      `🔒 <b>${cuando}: ${h(nombre(r) || "evento privado")}</b>`,
+      [fecha(f[pC.fecha]), texto(f[pC.hora]), texto(f[pC.lugar])].filter(Boolean).map(h).join(" · "),
+    ].join("\n");
+    let enviado = false;
+    for (const chat of chats) enviado = (await enviar(chat, msg)) || enviado;
+    if (enviado) {
+      await actualizarRegistro(pC.tabla, r.id, { [pC.recordatorio]: true });
+      log.push(`Recordatorio privado (${cuando.toLowerCase()})`);
+    }
+  }
+  if (log.length) invalidar(pC.tabla);
+  return log;
+}
+
+/** Resumen del mes de "Mis gastos" (lo lanza la tarea programada del día 1, junto al informe contable). */
+export async function informePrivado(mes = mesAnterior()): Promise<string[]> {
+  const pG = PRIVADO.gastos;
+  if (!PRIVADO.propietarios.length || !(await getEsquema()).some((t) => t.id === pG.tabla)) return [];
+  const chats = await chatsPropietarios();
+  if (!chats.length) return ["Mis gastos: el dueño no tiene Telegram conectado."];
+  const gastos = (await getRegistrosSinCache(pG.tabla)).filter((r) => String(r.fields[pG.fecha] ?? "").startsWith(mes));
+  const $ = (n: number) => dinero(n) || "$0";
+  const total = gastos.reduce((s, r) => s + aNumero(r.fields[pG.monto]), 0);
+  const porCategoria = new Map<string, number>();
+  for (const r of gastos) {
+    const cat = texto(r.fields[pG.categoria]) || "Sin categoría";
+    porCategoria.set(cat, (porCategoria.get(cat) ?? 0) + aNumero(r.fields[pG.monto]));
+  }
+  const detalle = [
+    `TOTAL ${$(total)} (${gastos.length} movimientos)`,
+    ...[...porCategoria.entries()].sort((a, b) => b[1] - a[1]).map(([c, n]) => `  ${c}: ${$(n)}`),
+  ].join("\n");
+  for (const chat of chats) await enviar(chat, `🔒 <b>Mis gastos · ${h(nombreMes(mes))}</b>\n\n<pre>${h(detalle)}</pre>`);
+  return [`Resumen privado de ${mes} enviado.`];
 }
 
 /* ------------------------------------------------------------------ */

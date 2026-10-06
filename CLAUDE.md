@@ -46,6 +46,8 @@ Consultar siempre el esquema real con la Metadata API; esta tabla es una referen
 | Gastos | tblVtMgHzjUYHX5nv | GASTOS | Cantidad, Categoría, Comprobante, Persona que hizo el pago, Aprobación |
 | Equipo | tbljsGsSe2Ep1Fnjy | Nombre | Rol, Email, Activo, campos de invitación (ocultos) |
 | SERVICIOS | tblst8FBjp9HUIU5v | Nombre del Servicio | Catálogo de servicios enlazado desde Clientes |
+| Mi calendario | tbl4yBMt9o0V4tkuu | Evento | Privada (`PRIVADO`): Fecha, Hora, Lugar, Tipo, Notas |
+| Mis gastos | tblFKkR1QAaXiVNgs | Concepto | Privada (`PRIVADO`): Fecha, Cantidad, Categoría, Forma de Pago, Comprobante |
 | Calendario | tblSpztRvvebMefcg | nombre del evento | Oculta en la app (`TABLAS_OCULTAS`): la app tiene su propio calendario |
 
 Reglas:
@@ -57,6 +59,7 @@ Reglas:
 
 - **Administrador:** acceso a todo, incluidas Contabilidad, Gastos y Equipo.
 - **Equipo:** solo Tareas y Calendario (en el calendario ve eventos, entregas y tareas, sin poder abrir Clientes ni Entrega). En sus tareas ve nombre, fecha, venue y servicio del cliente, nunca precios ni otros datos (`resumenClientes`). Sin panel de inicio, Clientes, Entrega, Leads, Contabilidad, Gastos ni Equipo.
+- **Apartado privado** (`PRIVADO` en `config/galerias.ts`): las tablas de `PRIVADO.tablas` (Mi calendario, Mis gastos) solo las ven y editan las filas de Equipo en `PRIVADO.propietarios` (por ID de fila, no por rol ni email), ni siquiera los demás administradores. Salen en "Más → Privado"; Mi calendario se suma a su calendario y .ics, con recordatorio por Telegram privado (tarea diaria), y Mis gastos manda un resumen mensual solo a su Telegram. En Airtable, quien tenga acceso a la base sí las ve.
 - El rol se elige en la ficha de la persona (Equipo → "Rol y acceso a la app").
 - Los permisos se comprueban en el servidor, no solo ocultando botones.
 
