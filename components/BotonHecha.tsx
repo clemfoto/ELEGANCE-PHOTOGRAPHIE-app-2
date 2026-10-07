@@ -3,7 +3,7 @@ import { useOptimistic, useTransition } from "react";
 import { alternarTarea } from "@/app/(app)/t/acciones";
 
 /** Marca una tarea como hecha con un toque (se ve al instante y se guarda en segundo plano). */
-export default function BotonHecha({ id, hecha }: { id: string; hecha: boolean }) {
+export default function BotonHecha({ tabla, id, hecha }: { tabla: string; id: string; hecha: boolean }) {
   const [optimista, setOptimista] = useOptimistic(hecha);
   const [, empezar] = useTransition();
   return (
@@ -15,7 +15,7 @@ export default function BotonHecha({ id, hecha }: { id: string; hecha: boolean }
       onClick={() =>
         empezar(async () => {
           setOptimista(!optimista);
-          await alternarTarea(id, !optimista);
+          await alternarTarea(tabla, id, !optimista);
         })
       }
     >

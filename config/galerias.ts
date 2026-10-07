@@ -71,7 +71,7 @@ export const TABLAS_ROL_EQUIPO: string[] = [TABLAS.tareas];
 export const PRIVADO = {
   // Fila de Clem en Equipo (recwTPCIxEQSqazCj).
   propietarios: ["recwTPCIxEQSqazCj"] as string[],
-  tablas: ["tbl4yBMt9o0V4tkuu", "tblFKkR1QAaXiVNgs"],
+  tablas: ["tbl4yBMt9o0V4tkuu", "tblcWvZ0Y1rpp0Zps", "tblFKkR1QAaXiVNgs"],
   /** "Mi calendario": sus fechas salen en el calendario del dueño y le llega un recordatorio por Telegram. */
   calendario: {
     tabla: "tbl4yBMt9o0V4tkuu",
@@ -84,6 +84,8 @@ export const PRIVADO = {
     /** Uso interno (oculto en la app): el recordatorio ya se mandó. */
     recordatorio: "Recordatorio enviado",
   },
+  /** "Tareas diversas": pendientes personales, con la misma lista que Tareas (marcar hecha con un toque). */
+  tareas: "tblcWvZ0Y1rpp0Zps",
   /** "Mis gastos": resumen mensual por Telegram, solo al dueño. */
   gastos: { tabla: "tblFKkR1QAaXiVNgs", fecha: "Fecha", monto: "Cantidad", categoria: "Categoría" },
 };
@@ -146,6 +148,8 @@ export const COLORES_OPCION: Record<string, [string, string]> = {
   "en revisión": NARANJA,
   completa: VERDE,
   completada: VERDE,
+  hecha: VERDE,
+  "por hacer": AZUL,
   // Entrega
   enviado: AZUL,
   "revisando cambios": NARANJA,
@@ -289,6 +293,16 @@ export const GALERIAS: Record<string, Galeria> = {
     filtro: PRIVADO.calendario.tipo,
     orden: { campo: PRIVADO.calendario.fecha, dir: "asc" },
     tarjeta: [PRIVADO.calendario.fecha, PRIVADO.calendario.hora, PRIVADO.calendario.lugar, PRIVADO.calendario.tipo],
+  },
+  [PRIVADO.tareas]: {
+    vista: "tareas",
+    orden: { campo: "Fecha límite", dir: "asc" },
+    estado: "Estado",
+    fecha: "Fecha límite",
+    prioridad: "Prioridad",
+    estadosHechos: ["Hecha"],
+    estadoPendiente: "Por hacer",
+    diasAviso: 2,
   },
   [PRIVADO.gastos.tabla]: {
     vista: "gastos",

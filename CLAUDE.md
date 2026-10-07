@@ -47,6 +47,7 @@ Consultar siempre el esquema real con la Metadata API; esta tabla es una referen
 | Equipo | tbljsGsSe2Ep1Fnjy | Nombre | Rol, Email, Activo, campos de invitación (ocultos) |
 | SERVICIOS | tblst8FBjp9HUIU5v | Nombre del Servicio | Catálogo de servicios enlazado desde Clientes |
 | Mi calendario | tbl4yBMt9o0V4tkuu | Evento | Privada (`PRIVADO`): Fecha, Hora, Lugar, Tipo, Notas |
+| Tareas diversas | tblcWvZ0Y1rpp0Zps | Tarea | Privada (`PRIVADO`): Fecha límite, Estado (Por hacer/En progreso/Hecha), Prioridad, Notas; vista de Tareas |
 | Mis gastos | tblFKkR1QAaXiVNgs | Concepto | Privada (`PRIVADO`): Fecha, Cantidad, Categoría, Forma de Pago, Comprobante |
 | Calendario | tblSpztRvvebMefcg | nombre del evento | Oculta en la app (`TABLAS_OCULTAS`): la app tiene su propio calendario |
 
@@ -59,7 +60,7 @@ Reglas:
 
 - **Administrador:** acceso a todo, incluidas Contabilidad, Gastos y Equipo.
 - **Equipo:** solo Tareas y Calendario (en el calendario ve eventos, entregas y tareas, sin poder abrir Clientes ni Entrega). En sus tareas ve nombre, fecha, venue y servicio del cliente, nunca precios ni otros datos (`resumenClientes`). Sin panel de inicio, Clientes, Entrega, Leads, Contabilidad, Gastos ni Equipo.
-- **Apartado privado** (`PRIVADO` en `config/galerias.ts`): las tablas de `PRIVADO.tablas` (Mi calendario, Mis gastos) solo las ven y editan las filas de Equipo en `PRIVADO.propietarios` (por ID de fila, no por rol ni email), ni siquiera los demás administradores. Salen en "Más → Privado"; Mi calendario se suma a su calendario y .ics, con recordatorio por Telegram privado (tarea diaria), y Mis gastos manda un resumen mensual solo a su Telegram. En Airtable, quien tenga acceso a la base sí las ve.
+- **Apartado privado** (`PRIVADO` en `config/galerias.ts`): las tablas de `PRIVADO.tablas` (Mi calendario, Tareas diversas, Mis gastos) solo las ven y editan las filas de Equipo en `PRIVADO.propietarios` (por ID de fila, no por rol ni email), ni siquiera los demás administradores. Salen en "Más → Privado"; Mi calendario se suma a su calendario y .ics, con recordatorio por Telegram privado (tarea diaria), y Mis gastos manda un resumen mensual solo a su Telegram. En Airtable, quien tenga acceso a la base sí las ve.
 - El rol se elige en la ficha de la persona (Equipo → "Rol y acceso a la app").
 - Los permisos se comprueban en el servidor, no solo ocultando botones.
 
@@ -111,7 +112,7 @@ Viven en la app (`lib/automatizaciones.ts`, `lib/telegram.ts`) y sustituyen a lo
 - Team members → invitación por Telegram con botón (o respuesta "confirmo"); se guarda en `Clientes.Confirmados`.
 - Videos → aviso al responsable 7 días antes de la fecha de entrega.
 - Leads → recordatorio a administradores a los 7, 14 y 21 días para el 2º, 3º y 4º contacto.
-- Día 1 de cada mes → informe contable por Telegram al grupo de administradores.
+- El informe contable mensual al grupo está **quitado** a petición del cliente: la contabilidad no se manda a Telegram. El día 1 solo sale el resumen privado de "Mis gastos" al Telegram del dueño.
 - La entrega automática a 9 semanas de Dreamcatcher está desactivada (`crearEntregaAuto: false`): en Elegance, VIDEOS son videos con cambios pedidos.
 - Campos internos ocultos en la app: `CAMPOS_OCULTOS`.
 

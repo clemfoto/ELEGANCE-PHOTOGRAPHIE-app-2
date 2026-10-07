@@ -3,7 +3,6 @@ import { getUsuario } from "@/lib/auth";
 import { esAdmin } from "@/lib/esquema";
 import {
   avisosVideos,
-  informeMensual,
   informePrivado,
   procesarClientes,
   recordatoriosPrivados,
@@ -43,7 +42,7 @@ async function manejar(req: NextRequest) {
         break;
       case "mensual": {
         const mes = req.nextUrl.searchParams.get("mes") ?? undefined;
-        log.push(...(await informeMensual(mes)), ...(await informePrivado(mes)));
+        log.push(...(await informePrivado(mes)));
         break;
       }
       case "webhook":

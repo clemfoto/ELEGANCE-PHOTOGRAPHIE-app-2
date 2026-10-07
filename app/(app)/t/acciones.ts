@@ -152,10 +152,11 @@ export async function guardarRegistro(
   redirect(`${rutaTabla(t)}/${id}`);
 }
 
-/** Marca una tarea como hecha / pendiente con un toque. */
-export async function alternarTarea(recordId: string, hecha: boolean): Promise<void> {
-  const { t } = await tablaEditable(TABLAS.tareas);
-  const g = GALERIAS[TABLAS.tareas];
+/** Marca una tarea como hecha / pendiente con un toque (Tareas o cualquier tabla con vista "tareas"). */
+export async function alternarTarea(tableId: string, recordId: string, hecha: boolean): Promise<void> {
+  const g = GALERIAS[tableId];
+  if (g?.vista !== "tareas") forbidden();
+  const { t } = await tablaEditable(tableId);
   const estado = String(g.estado);
   const nuevo = hecha ? (g.estadosHechos as string[])[0] : String(g.estadoPendiente);
   await actualizarRegistro(t.id, recordId, { [estado]: nuevo });
