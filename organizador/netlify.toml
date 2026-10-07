@@ -1,0 +1,7 @@
+# Sitio de Netlify propio para el organizador (base directory: organizador).
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[functions]
+  directory = "netlify/functions"

@@ -1,0 +1,24 @@
+{
+  "name": "organizador-clem",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "ALMACEN=archivo AUTH_SECRET=dev-secret-dev-secret-dev-secret CLAVE_ACCESO=demo1234 next dev -p 3100",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^10.0.0",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}
