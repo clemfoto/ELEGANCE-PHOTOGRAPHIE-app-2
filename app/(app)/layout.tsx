@@ -7,7 +7,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const nav = await navegacion(u);
   return (
     <div className="app">
-      <Navegacion principal={nav.principal} mas={nav.mas} privado={nav.privado} usuario={{ nombre: u.nombre, rol: u.rol }} />
+      <Navegacion principal={nav.principal} mas={nav.mas} usuario={{ nombre: u.nombre, rol: u.rol }} />
       <main className="contenido">{children}</main>
     </div>
   );

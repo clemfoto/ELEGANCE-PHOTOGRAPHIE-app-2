@@ -5,7 +5,6 @@ const TAREAS = [
   { tarea: "webhook", texto: "Conectar el bot", ayuda: "Hazlo una vez tras configurar el bot (o si cambias de dominio)." },
   { tarea: "frecuente", texto: "Enviar avisos de clientes", ayuda: "Nuevos clientes e invitaciones. Se hace solo cada 10 min." },
   { tarea: "diaria", texto: "Enviar recordatorios de hoy", ayuda: "Entregas y leads. Se hace solo cada día a las 9:00." },
-  { tarea: "mensual", texto: "Enviar resumen privado del mes", ayuda: "Mis gastos del mes pasado, solo al Telegram del dueño. Se envía solo el día 1." },
 ];
 
 export default function PanelAutomatizaciones() {

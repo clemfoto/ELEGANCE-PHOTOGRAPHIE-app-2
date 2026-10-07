@@ -61,35 +61,6 @@ export const EQUIPO = {
  */
 export const TABLAS_ROL_EQUIPO: string[] = [TABLAS.tareas];
 
-/**
- * Apartado privado del dueño: tablas que solo ven y editan las personas de `propietarios`
- * (ni los demás administradores ni el equipo; el servidor les responde "sin permiso").
- * Se identifican por el ID de su fila en Equipo, que no se puede cambiar desde la app.
- * Para hacer privada otra tabla de Airtable, añadir su ID a `tablas`.
- * Ojo: quien tenga acceso a la base en Airtable sí puede verlas allí.
- */
-export const PRIVADO = {
-  // Fila de Clem en Equipo (recwTPCIxEQSqazCj).
-  propietarios: ["recwTPCIxEQSqazCj"] as string[],
-  tablas: ["tbl4yBMt9o0V4tkuu", "tblcWvZ0Y1rpp0Zps", "tblFKkR1QAaXiVNgs"],
-  /** "Mi calendario": sus fechas salen en el calendario del dueño y le llega un recordatorio por Telegram. */
-  calendario: {
-    tabla: "tbl4yBMt9o0V4tkuu",
-    fecha: "Fecha",
-    hora: "Hora",
-    lugar: "Lugar",
-    tipo: "Tipo",
-    /** Días antes en que se manda el recordatorio (0 = el mismo día). */
-    diasAviso: 1,
-    /** Uso interno (oculto en la app): el recordatorio ya se mandó. */
-    recordatorio: "Recordatorio enviado",
-  },
-  /** "Tareas diversas": pendientes personales, con la misma lista que Tareas (marcar hecha con un toque). */
-  tareas: "tblcWvZ0Y1rpp0Zps",
-  /** "Mis gastos": resumen mensual por Telegram, solo al dueño. */
-  gastos: { tabla: "tblFKkR1QAaXiVNgs", fecha: "Fecha", monto: "Cantidad", categoria: "Categoría" },
-};
-
 /** Barra inferior del móvil (el resto de tablas va en "Más"). */
 export const NAV_PRINCIPAL: string[] = [TABLAS.clientes, TABLAS.tareas, TABLAS.entrega, TABLAS.leads];
 
@@ -148,8 +119,6 @@ export const COLORES_OPCION: Record<string, [string, string]> = {
   "en revisión": NARANJA,
   completa: VERDE,
   completada: VERDE,
-  hecha: VERDE,
-  "por hacer": AZUL,
   // Entrega
   enviado: AZUL,
   "revisando cambios": NARANJA,
@@ -288,31 +257,6 @@ export const GALERIAS: Record<string, Galeria> = {
     aprobacion: "Aprobación",
     aprobadoPor: "Aprobado por",
   },
-  // Apartado privado (ver PRIVADO).
-  [PRIVADO.calendario.tabla]: {
-    filtro: PRIVADO.calendario.tipo,
-    orden: { campo: PRIVADO.calendario.fecha, dir: "asc" },
-    tarjeta: [PRIVADO.calendario.fecha, PRIVADO.calendario.hora, PRIVADO.calendario.lugar, PRIVADO.calendario.tipo],
-  },
-  [PRIVADO.tareas]: {
-    vista: "tareas",
-    orden: { campo: "Fecha límite", dir: "asc" },
-    estado: "Estado",
-    fecha: "Fecha límite",
-    prioridad: "Prioridad",
-    estadosHechos: ["Hecha"],
-    estadoPendiente: "Por hacer",
-    diasAviso: 2,
-  },
-  [PRIVADO.gastos.tabla]: {
-    vista: "gastos",
-    filtro: PRIVADO.gastos.categoria,
-    orden: { campo: PRIVADO.gastos.fecha, dir: "desc" },
-    categoria: PRIVADO.gastos.categoria,
-    fecha: PRIVADO.gastos.fecha,
-    monto: PRIVADO.gastos.monto,
-    comprobante: "Comprobante",
-  },
   [TABLAS.equipo]: {
     vista: "equipo",
     rol: "Rol",
@@ -410,10 +354,5 @@ export const AUTOMATIZACIONES = {
     leadRecordatorios: "Recordatorios enviados",
     clienteAvisoConfirmado: "Aviso confirmado",
     videoAviso: "Aviso enviado",
-    contaDeposito: "DEPOSITO",
-    contaFechaDeposito: "Fecha Depósito",
-    contaTotal: "Monto Total",
-    contaPendiente: "Monto Pendiente",
-    contaFechaBalance: "Fecha Balance",
   },
 };

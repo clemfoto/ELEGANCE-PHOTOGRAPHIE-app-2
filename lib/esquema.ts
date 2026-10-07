@@ -1,6 +1,6 @@
 import "server-only";
 import { getEsquema, getRegistros, type Field, type Table } from "@/lib/airtable";
-import { CAMPOS_OCULTOS, CAMPOS_SOLO_BOTONES, EQUIPO, GALERIAS, TABLAS, NAV_MAS, NAV_PRINCIPAL, PRIVADO, TABLAS_OCULTAS, TABLAS_ROL_EQUIPO } from "@/config/galerias";
+import { CAMPOS_OCULTOS, CAMPOS_SOLO_BOTONES, EQUIPO, GALERIAS, TABLAS, NAV_MAS, NAV_PRINCIPAL, TABLAS_OCULTAS, TABLAS_ROL_EQUIPO } from "@/config/galerias";
 import type { Usuario } from "@/lib/auth";
 
 /** Tipos calculados por Airtable: se muestran pero no se editan. */
@@ -42,12 +42,7 @@ export function titulo(t: Table): string {
 
 export const esAdmin = (u: Usuario) => u.rol === EQUIPO.rolAdmin;
 
-/** Dueño con apartado privado (PRIVADO.propietarios): se comprueba por el ID de su fila en Equipo. */
-export const esPropietario = (u: Usuario) => PRIVADO.propietarios.includes(u.id);
-export const esPrivada = (tableId: string) => PRIVADO.tablas.includes(tableId);
-
 export function puedeVerTabla(u: Usuario, tableId: string): boolean {
-  if (esPrivada(tableId)) return esPropietario(u);
   return esAdmin(u) || TABLAS_ROL_EQUIPO.includes(tableId);
 }
 
@@ -92,21 +87,18 @@ export const rutaTabla = (t: Table) => `/t/${slug(t.name)}`;
 export async function navegacion(u: Usuario) {
   const tablas = (await getEsquema()).filter((t) => puedeVerTabla(u, t.id) && !TABLAS_OCULTAS.includes(t.id));
   const principal = NAV_PRINCIPAL.map((id) => tablas.find((t) => t.id === id)).filter(Boolean) as Table[];
-  const conocidas = new Set([...NAV_PRINCIPAL, ...NAV_MAS, ...PRIVADO.tablas]);
+  const conocidas = new Set([...NAV_PRINCIPAL, ...NAV_MAS]);
   const mas = [
     ...(NAV_MAS.map((id) => tablas.find((t) => t.id === id)).filter(Boolean) as Table[]),
     ...tablas.filter((t) => !conocidas.has(t.id)),
   ];
   const item = (t: Table) => ({ id: t.id, titulo: titulo(t), href: rutaTabla(t) });
-  // Apartado privado: solo tiene tablas si es el dueño (puedeVerTabla ya filtró).
-  const privado = (PRIVADO.tablas.map((id) => tablas.find((t) => t.id === id)).filter(Boolean) as Table[]).map(item);
   const calendario = { id: "calendario", titulo: "Calendario", href: "/calendario" };
   // El rol Equipo solo tiene Tareas y Calendario; el Administrador, además, el panel de inicio.
-  if (!esAdmin(u)) return { principal: [...principal.map(item), calendario], mas: mas.map(item), privado };
+  if (!esAdmin(u)) return { principal: [...principal.map(item), calendario], mas: mas.map(item) };
   return {
     principal: [{ id: "inicio", titulo: "Inicio", href: "/inicio" }, ...principal.map(item)],
     mas: [calendario, ...mas.map(item)],
-    privado,
   };
 }
 

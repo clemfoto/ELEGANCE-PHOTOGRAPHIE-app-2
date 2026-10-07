@@ -90,7 +90,7 @@ function FilaTarea({ r, ctx, hecha }: { r: AirRecord; ctx: Contexto; hecha: bool
 
   return (
     <div className={`fila tarjeta ${hecha ? "hecha" : ""}`}>
-      <BotonHecha tabla={ctx.t.id} id={r.id} hecha={hecha} />
+      <BotonHecha id={r.id} hecha={hecha} />
       <Link href={`${rutaTabla(ctx.t)}/${r.id}`} className="fila-cuerpo">
         <span className="fila-titulo">{textoPrincipal(r.fields[principal.name]) || "Sin nombre"}</span>
         <span className="fila-meta">

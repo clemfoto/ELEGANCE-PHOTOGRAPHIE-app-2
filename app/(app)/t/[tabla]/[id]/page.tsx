@@ -47,7 +47,7 @@ export default async function Ficha({ params }: Props) {
           ‹ {titulo(ctx.t)}
         </Link>
         <div className="cabecera-fila">
-          {esTarea && <BotonHecha tabla={ctx.t.id} id={r.id} hecha={hechos.includes(texto(r.fields[String(ctx.g.estado)]))} />}
+          {esTarea && <BotonHecha id={r.id} hecha={hechos.includes(texto(r.fields[String(ctx.g.estado)]))} />}
           <h1 className="titulo titulo-ficha">{textoPrincipal(r.fields[principal.name]) || "Sin nombre"}</h1>
         </div>
         <div className="acciones">
