@@ -62,7 +62,7 @@ Las tareas programadas (`netlify/functions/auto-*.mjs`) solo corren en el despli
 | `app/(app)/calendario`, `lib/calendario.ts`, `app/api/calendario` | Calendario mensual y suscripción `.ics` personal para iPhone/Mac/Google. |
 | `app/(app)/t/[tabla]/…` | Motor genérico: lista, ficha, nuevo y editar para cualquier tabla. |
 | `components/vistas/` | Diseños a medida de Clientes, Tareas, Entrega, Leads, Contabilidad, Gastos y Equipo. |
-| `lib/automatizaciones.ts`, `lib/telegram.ts` | Avisos de clientes, confirmaciones, recordatorios de entrega y leads, informe mensual por Telegram. |
+| `lib/automatizaciones.ts`, `lib/telegram.ts` | Avisos de clientes, confirmaciones, recordatorios de entrega y leads por Telegram. |
 | `app/(app)/t/acciones.ts` | Guardar, marcar tarea, convertir lead y borrar (Server Actions con permisos). |
 
 ### Notas

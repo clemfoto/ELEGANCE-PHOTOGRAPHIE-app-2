@@ -3,7 +3,6 @@ import { getUsuario } from "@/lib/auth";
 import { esAdmin } from "@/lib/esquema";
 import {
   avisosVideos,
-  informeMensual,
   procesarClientes,
   recordatoriosEntrega,
   recordatoriosLeads,
@@ -16,7 +15,7 @@ export const maxDuration = 60;
  * Ejecuta las automatizaciones.
  *  - Tareas programadas de Netlify: cabecera x-cron-secret.
  *  - Un administrador con sesión: botones de la página "Más".
- * ?tarea=frecuente | diaria | mensual | webhook | estado
+ * ?tarea=frecuente | diaria | webhook | estado
  */
 async function manejar(req: NextRequest) {
   const porCron = igualSeguro(req.headers.get("x-cron-secret"), secretoCron());
@@ -38,9 +37,6 @@ async function manejar(req: NextRequest) {
         break;
       case "diaria":
         log.push(...(await recordatoriosEntrega()), ...(await recordatoriosLeads(base)));
-        break;
-      case "mensual":
-        log.push(...(await informeMensual(req.nextUrl.searchParams.get("mes") ?? undefined)));
         break;
       case "webhook":
         await configurarWebhook(`${base}/api/telegram`);

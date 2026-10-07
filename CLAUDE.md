@@ -108,7 +108,7 @@ Viven en la app (`lib/automatizaciones.ts`, `lib/telegram.ts`) y sustituyen a lo
 - Team members → invitación por Telegram con botón (o respuesta "confirmo"); se guarda en `Clientes.Confirmados`.
 - Videos → aviso al responsable 7 días antes de la fecha de entrega.
 - Leads → recordatorio a administradores a los 7, 14 y 21 días para el 2º, 3º y 4º contacto.
-- Día 1 de cada mes → informe contable por Telegram al grupo de administradores.
+- Sin informe contable por Telegram: se quitó a petición del cliente (la contabilidad no se manda al grupo).
 - La entrega automática a 9 semanas de Dreamcatcher está desactivada (`crearEntregaAuto: false`): en Elegance, VIDEOS son videos con cambios pedidos.
 - Campos internos ocultos en la app: `CAMPOS_OCULTOS`.
 

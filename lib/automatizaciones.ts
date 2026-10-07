@@ -12,7 +12,7 @@ import { campoPrincipal, nombreDeRegistro, opciones, textoConEnlaces, textoPrinc
 import { diasHasta, fecha, hoyISO, moneda, texto } from "@/lib/formato";
 import { aNumero } from "@/lib/lista";
 import { chatVideos, enviar, enviarAdmins, h, ultimoErrorTelegram } from "@/lib/telegram";
-import { AUTOMATIZACIONES as A, DECISIONES, EQUIPO, GALERIAS, TABLAS, ZONA_HORARIA } from "@/config/galerias";
+import { AUTOMATIZACIONES as A, EQUIPO, GALERIAS, TABLAS, ZONA_HORARIA } from "@/config/galerias";
 
 /*
  * Automatizaciones. Se ejecutan desde /api/automatizaciones (tareas programadas de Netlify)
@@ -24,7 +24,6 @@ const C = A.campos;
 const gCli = GALERIAS[TABLAS.clientes];
 const gEnt = GALERIAS[TABLAS.entrega];
 const gLead = GALERIAS[TABLAS.leads];
-const gGas = GALERIAS[TABLAS.gastos];
 
 /** Dinero sin decimales para los mensajes. */
 const dinero = (n: unknown) => moneda(n, { id: "", name: "", type: "currency", options: { symbol: "$", precision: 0 } });
@@ -420,77 +419,6 @@ export async function recordatoriosLeads(base: string): Promise<string[]> {
   }
   if (log.length) invalidar(TABLAS.leads);
   return log;
-}
-
-/* ------------------------------------------------------------------ */
-/* 5. Informe contable mensual                                          */
-/* ------------------------------------------------------------------ */
-
-/** Mes anterior al actual, "YYYY-MM". */
-export function mesAnterior(): string {
-  const [y, m] = hoyISO().split("-").map(Number);
-  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
-}
-
-const nombreMes = (mes: string) =>
-  new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(new Date(`${mes}-15T12:00:00Z`));
-
-/** Informe del mes por Telegram al grupo de administradores (lo lanza la tarea programada del día 1). */
-export async function informeMensual(mes = mesAnterior()): Promise<string[]> {
-  const [conta, gastos, clientes] = await Promise.all([
-    getRegistrosSinCache(TABLAS.contabilidad),
-    getRegistrosSinCache(TABLAS.gastos),
-    getRegistrosSinCache(TABLAS.clientes),
-  ]);
-  const enMes = (v: unknown) => typeof v === "string" && v.startsWith(mes);
-  const $ = (n: number) => dinero(n) || "$0";
-
-  // Ingresos: depósitos y balances de Contabilidad con fecha en el mes.
-  const depositos = conta.filter((r) => enMes(r.fields[C.contaFechaDeposito]));
-  const totalDepositos = depositos.reduce((s, r) => s + aNumero(r.fields[C.contaDeposito]), 0);
-  const balances = conta.filter((r) => enMes(r.fields[C.contaFechaBalance]));
-  const totalBalances = balances.reduce(
-    (s, r) => s + Math.max(0, aNumero(r.fields[C.contaTotal]) - aNumero(r.fields[C.contaDeposito])),
-    0,
-  );
-  const ingresos = totalDepositos + totalBalances;
-  const pendiente = conta.reduce((s, r) => s + Math.max(0, aNumero(r.fields[C.contaPendiente])), 0);
-
-  // Los gastos rechazados no cuentan.
-  const gastosMes = gastos.filter(
-    (r) => enMes(r.fields[str(gGas.fecha)]) && texto(r.fields[str(gGas.aprobacion)]) !== DECISIONES.rechazado,
-  );
-  const totalGastos = gastosMes.reduce((s, r) => s + aNumero(r.fields[str(gGas.monto)]), 0);
-  const porCategoria = new Map<string, number>();
-  for (const r of gastosMes) {
-    const cat = texto(r.fields[str(gGas.categoria)]) || "Sin categoría";
-    porCategoria.set(cat, (porCategoria.get(cat) ?? 0) + aNumero(r.fields[str(gGas.monto)]));
-  }
-
-  const eventos = clientes.filter(
-    (r) => enMes(r.fields[str(gCli.fecha)]) && !opciones(r.fields[str(gCli.estado)]).some((x) => A.estadosClienteIgnorados.includes(x)),
-  );
-  const facturado = eventos.reduce((s, r) => s + aNumero(r.fields[str(gCli.precio)]), 0);
-  const resultado = ingresos - totalGastos;
-
-  const detalle = [
-    `INGRESOS ${$(ingresos)}`,
-    `  Depósitos cobrados (${depositos.length}): ${$(totalDepositos)}`,
-    `  Balances con fecha en el mes (${balances.length}): ${$(totalBalances)}`,
-    ``,
-    `GASTOS ${$(totalGastos)} (${gastosMes.length} movimientos)`,
-    ...[...porCategoria.entries()].sort((a, b) => b[1] - a[1]).map(([c, n]) => `  ${c}: ${$(n)}`),
-    ``,
-    `RESULTADO ${$(resultado)}`,
-    ``,
-    `Eventos del mes: ${eventos.length} (facturación ${$(facturado)})`,
-    ...eventos.map((r) => `  ${nombreCliente(r)} · ${fecha(r.fields[str(gCli.fecha)])}`),
-    ``,
-    `Pendiente de cobro total a hoy: ${$(pendiente)}`,
-  ].join("\n");
-
-  await enviarAdmins(`📊 <b>Informe contable · ${h(nombreMes(mes))}</b>\n\n<pre>${h(detalle)}</pre>`);
-  return [`Informe de ${mes} enviado por Telegram.`];
 }
 
 /* ------------------------------------------------------------------ */

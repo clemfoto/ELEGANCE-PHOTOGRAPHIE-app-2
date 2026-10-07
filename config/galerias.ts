@@ -354,10 +354,5 @@ export const AUTOMATIZACIONES = {
     leadRecordatorios: "Recordatorios enviados",
     clienteAvisoConfirmado: "Aviso confirmado",
     videoAviso: "Aviso enviado",
-    contaDeposito: "DEPOSITO",
-    contaFechaDeposito: "Fecha Depósito",
-    contaTotal: "Monto Total",
-    contaPendiente: "Monto Pendiente",
-    contaFechaBalance: "Fecha Balance",
   },
 };
