@@ -21,7 +21,14 @@ const destino = (v: string, porDefecto: string) => (v.startsWith("/") && !v.star
 // ---------- acceso ----------
 
 export async function entrar(_: Estado, fd: FormData): Promise<Estado> {
-  if (!claveCorrecta(texto(fd, "clave"))) {
+  let correcta: boolean;
+  try {
+    correcta = claveCorrecta(texto(fd, "clave"));
+  } catch (e) {
+    // Falta CLAVE_ACCESO o AUTH_SECRET en Netlify: mejor decirlo que dar un error genérico.
+    return { error: e instanceof Error ? e.message : "Configuración incompleta." };
+  }
+  if (!correcta) {
     await new Promise((r) => setTimeout(r, 800));
     return { error: "Contraseña incorrecta." };
   }
