@@ -5,3 +5,7 @@
 
 [functions]
   directory = "netlify/functions"
+
+# Adaptador de Next.js (el sitio se creó por API, así que hay que declararlo).
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
