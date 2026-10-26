@@ -77,13 +77,8 @@ Las tareas programadas (`netlify/functions/auto-*.mjs`) solo corren en el despli
 ## Migración a Supabase (en curso)
 
 Airtable sigue siendo la base en uso hasta terminar la migración; no se borra nada de Airtable.
+Proyecto Supabase: `elegance-photographie` (organización Elegance Photographie, plan Pro).
 
 1. `supabase/migrations/20261027000000_esquema_inicial.sql`: tablas equivalentes a las de Airtable. Cada fila conserva su ID `rec…` y su registro original en `airtable_raw`; los enlaces van en tablas puente y los adjuntos en el bucket privado `adjuntos`.
-2. `scripts/migrar-airtable-a-supabase.mjs`: copia Airtable → Supabase y verifica conteos de filas, enlaces y adjuntos.
-
-```bash
-AIRTABLE_TOKEN=… node scripts/migrar-airtable-a-supabase.mjs --simular      # solo respaldo + análisis
-AIRTABLE_TOKEN=… SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/migrar-airtable-a-supabase.mjs
-```
-
-Cada ejecución guarda un respaldo completo (JSON + adjuntos) en `respaldo/` (no se sube a git). Se puede repetir: la última ejecución deja Supabase igual que Airtable.
+2. `supabase/migrations/20261027000100_control_migracion.sql`: clave de la función de importación y bucket privado `respaldos`.
+3. `supabase/functions/migrar-airtable`: Edge Function que respalda Airtable completo en `respaldos/`, copia todo a Supabase y verifica conteos de filas, enlaces y adjuntos. Necesita el secreto `AIRTABLE_TOKEN` (solo lectura) y la cabecera `x-migracion-clave` (tabla `migracion_clave`). `?simular=1` solo hace el respaldo. Se puede repetir: la última ejecución deja Supabase igual que Airtable.

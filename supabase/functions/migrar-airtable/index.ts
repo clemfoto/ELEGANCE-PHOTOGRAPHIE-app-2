@@ -1,32 +1,46 @@
-#!/usr/bin/env node
+// @ts-nocheck — JavaScript simple ejecutado por Deno en Supabase Edge Functions.
 /**
  * Copia toda la base de Airtable "Elegance Photographie CRM" a Supabase sin perder nada.
+ * Corre dentro de Supabase (Edge Function), así que la clave de servicio nunca sale del servidor.
  *
- *   node scripts/migrar-airtable-a-supabase.mjs --simular   # solo respaldo + análisis, no escribe en Supabase
- *   node scripts/migrar-airtable-a-supabase.mjs             # respaldo + copia + verificación
+ *   POST /functions/v1/migrar-airtable?simular=1   # solo respaldo + análisis, no escribe en las tablas
+ *   POST /functions/v1/migrar-airtable             # respaldo + copia + verificación
+ *   Cabecera obligatoria: x-migracion-clave: <valor de la tabla privada migracion_clave>
  *
- * Variables: AIRTABLE_TOKEN, AIRTABLE_BASE_ID (opcional), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+ * Secreto: AIRTABLE_TOKEN (solo lectura: data.records:read + schema.bases:read).
+ * SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los pone Supabase.
  *
  * Qué hace:
- * 1. Descarga el esquema y todos los registros y los guarda en respaldo/airtable-<fecha>.json,
- *    con los adjuntos en respaldo/adjuntos/ (Airtable no se toca nunca: solo lectura).
+ * 1. Descarga el esquema y todos los registros y los guarda en el bucket privado "respaldos"
+ *    (airtable-<fecha>/datos.json y los adjuntos). Airtable no se toca nunca: solo lectura.
  * 2. Inserta o actualiza cada fila conservando su ID "rec…" y el registro original en `airtable_raw`.
  * 3. Rehace los enlaces (tablas puente) y sube los adjuntos al bucket privado "adjuntos".
- * 4. Compara conteos de filas, enlaces y adjuntos entre Airtable y Supabase. Sale con error si algo no cuadra.
+ * 4. Compara conteos de filas, enlaces y adjuntos entre Airtable y Supabase.
  *
  * Se puede ejecutar varias veces: la última ejecución deja Supabase igual que Airtable.
  */
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 
-const SIMULAR = process.argv.includes("--simular");
-const BASE = process.env.AIRTABLE_BASE_ID || "appV0PordtxxqzY5C";
-const AT_TOKEN = process.env.AIRTABLE_TOKEN;
-const SB_URL = process.env.SUPABASE_URL?.replace(/\/$/, "");
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const BASE = Deno.env.get("AIRTABLE_BASE_ID") || "appV0PordtxxqzY5C";
+const AT_TOKEN = Deno.env.get("AIRTABLE_TOKEN");
+const SB_URL = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-if (!AT_TOKEN) salir("Falta AIRTABLE_TOKEN.");
-if (!SIMULAR && (!SB_URL || !SB_KEY)) salir("Faltan SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (o usa --simular).");
+Deno.serve(async (req) => {
+  // La clave vive en una tabla con RLS y sin políticas: solo la puede leer el servidor.
+  const claves = await (await sb("/rest/v1/migracion_clave?select=clave")).json();
+  const enviada = req.headers.get("x-migracion-clave");
+  if (!enviada || !claves.some((c) => c.clave === enviada)) return new Response("No autorizado", { status: 401 });
+  const simular = new URL(req.url).searchParams.has("simular");
+  const log = [];
+  const problemas = [];
+  try {
+    if (!AT_TOKEN) throw new Error("Falta el secreto AIRTABLE_TOKEN.");
+    await migrar(simular, log, problemas);
+  } catch (e) {
+    problemas.push(`Error: ${e.message}`);
+  }
+  return Response.json({ ok: problemas.length === 0, simular, problemas, log });
+});
 
 /* ---------- mapa Airtable → Supabase ---------- */
 
@@ -37,11 +51,11 @@ const casilla = (v) => v === true;
 const lista = (v) => (Array.isArray(v) ? v.map(String) : []);
 const json = (v) => v ?? null;
 
-// Por tabla: campos → [columna, conversión]; enlaces → tabla puente; adjuntos → nombre del campo.
-// Los enlaces inversos (el otro lado de cada pareja) se listan en `inversos` y solo se usan para verificar.
 // Campos que no necesitan columna propia (repiten un dato que ya se guarda).
 const SIN_COLUMNA = ["fld1UYWOqzIEOycTu"]; // Clientes.CREATED TIME = createdTime del registro
 
+// Por tabla: campos → [columna, conversión]; enlaces → tabla puente; adjuntos → nombre del campo.
+// Los enlaces inversos (el otro lado de cada pareja) se listan en `inversos`: son los mismos enlaces vistos desde la otra tabla.
 const TABLAS = [
   {
     tabla: "equipo", id: "tbljsGsSe2Ep1Fnjy",
@@ -159,7 +173,7 @@ const TABLAS = [
 
 async function airtable(url) {
   for (let intento = 0; ; intento++) {
-    const res = await fetch(`${process.env.AIRTABLE_API_URL || "https://api.airtable.com"}${url}`, { headers: { Authorization: `Bearer ${AT_TOKEN}` } });
+    const res = await fetch(`https://api.airtable.com${url}`, { headers: { Authorization: `Bearer ${AT_TOKEN}` } });
     if (res.status === 429 && intento < 5) { await espera(1000 * 2 ** intento); continue; }
     if (!res.ok) salir(`Airtable ${res.status} en ${url}: ${await res.text()}`);
     await espera(250); // ~4 peticiones/s
@@ -218,137 +232,116 @@ async function contar(tabla, filtro = {}) {
 
 /* ---------- programa ---------- */
 
-const fechaHoy = new Date().toISOString().replace(/[:.]/g, "-");
-const DIR = path.resolve("respaldo");
-const problemas = [];
-
-console.log(`Leyendo Airtable (${BASE})…`);
-const esquema = (await airtable(`/v0/meta/bases/${BASE}/tables`)).tables;
-const datos = {};
-for (const t of TABLAS) {
-  datos[t.id] = await registros(t.id);
-  console.log(`  ${t.tabla}: ${datos[t.id].length} registros`);
-}
-const otras = esquema.filter((e) => !TABLAS.some((t) => t.id === e.id));
-for (const e of otras) {
-  datos[e.id] = await registros(e.id);
-  problemas.push(`Tabla nueva en Airtable sin tabla en Supabase: "${e.name}" (${datos[e.id].length} registros). Está en el respaldo.`);
+async function subir(bucket, ruta, cuerpo, tipo) {
+  await sb(`/storage/v1/object/${bucket}/${ruta.split("/").map(encodeURIComponent).join("/")}`, {
+    method: "POST",
+    headers: { "Content-Type": tipo || "application/octet-stream", "x-upsert": "true" },
+    body: cuerpo,
+  });
 }
 
-// Campos que existen en Airtable y no tienen columna: siguen en airtable_raw, pero se avisa.
-for (const t of TABLAS) {
-  const e = esquema.find((x) => x.id === t.id);
-  if (!e) { problemas.push(`La tabla ${t.tabla} (${t.id}) ya no existe en Airtable.`); continue; }
-  const conocidos = new Set([...Object.keys(t.campos), ...(t.enlaces ?? []).map((l) => l.campo),
-    ...Object.keys(t.adjuntos ?? {}), ...(t.inversos ?? []), ...(t.calculados ?? []), ...SIN_COLUMNA]);
-  for (const f of e.fields) {
-    if (!conocidos.has(f.id)) problemas.push(`Campo nuevo "${e.name}.${f.name}" (${f.type}) sin columna: queda guardado en airtable_raw.`);
+async function migrar(simular, log, problemas) {
+  const carpeta = `airtable-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+  const comparar = (que, airtableN, supabaseN) => {
+    const ok = airtableN === supabaseN;
+    log.push(`${ok ? "✔" : "✘"} ${que}: Airtable ${airtableN} · Supabase ${supabaseN}`);
+    if (!ok) problemas.push(`No cuadra ${que}: Airtable ${airtableN}, Supabase ${supabaseN}`);
+  };
+
+  const esquema = (await airtable(`/v0/meta/bases/${BASE}/tables`)).tables;
+  const datos = {};
+  for (const t of TABLAS) {
+    datos[t.id] = await registros(t.id);
+    log.push(`Airtable ${t.tabla}: ${datos[t.id].length} registros`);
   }
-}
+  for (const e of esquema.filter((e) => !TABLAS.some((t) => t.id === e.id))) {
+    datos[e.id] = await registros(e.id);
+    problemas.push(`Tabla nueva en Airtable sin tabla en Supabase: "${e.name}" (${datos[e.id].length} registros). Está en el respaldo.`);
+  }
 
-await mkdir(DIR, { recursive: true });
-const archivoRespaldo = path.join(DIR, `airtable-${fechaHoy}.json`);
-await writeFile(archivoRespaldo, JSON.stringify({ base: BASE, fecha: new Date().toISOString(), esquema, registros: datos }, null, 1));
-console.log(`Respaldo guardado en ${archivoRespaldo}`);
+  // Campos que existen en Airtable y no tienen columna: siguen en airtable_raw, pero se avisa.
+  for (const t of TABLAS) {
+    const e = esquema.find((x) => x.id === t.id);
+    if (!e) { problemas.push(`La tabla ${t.tabla} (${t.id}) ya no existe en Airtable.`); continue; }
+    const conocidos = new Set([...Object.keys(t.campos), ...(t.enlaces ?? []).map((l) => l.campo),
+      ...Object.keys(t.adjuntos ?? {}), ...(t.inversos ?? []), ...(t.calculados ?? []), ...SIN_COLUMNA]);
+    for (const f of e.fields) {
+      if (!conocidos.has(f.id)) problemas.push(`Campo nuevo "${e.name}.${f.name}" (${f.type}) sin columna: queda guardado en airtable_raw.`);
+    }
+  }
 
-// Adjuntos: se descargan siempre al respaldo local (los enlaces de Airtable caducan en unas horas).
-const adjuntos = [];
-for (const t of TABLAS) {
-  for (const [campo, nombreCampo] of Object.entries(t.adjuntos ?? {})) {
-    for (const r of datos[t.id]) {
-      for (const [orden, a] of (r.fields[campo] ?? []).entries()) {
-        const res = await fetch(a.url);
-        if (!res.ok) { problemas.push(`No se pudo descargar el adjunto ${a.filename} de ${t.tabla}/${r.id}`); continue; }
-        const buf = Buffer.from(await res.arrayBuffer());
-        const nombreSeguro = (a.filename || "archivo").replace(/[^\w.\-]+/g, "_");
-        const storagePath = `${t.tabla}/${r.id}/${a.id}-${nombreSeguro}`;
-        await mkdir(path.join(DIR, "adjuntos", t.tabla, r.id), { recursive: true });
-        await writeFile(path.join(DIR, "adjuntos", storagePath), buf);
-        adjuntos.push({ buf, fila: {
-          tabla: t.tabla, registro_id: r.id, campo: nombreCampo, orden, airtable_id: a.id, nombre: a.filename ?? null,
-          tipo_mime: a.type ?? null, tamano: a.size ?? buf.length, ancho: a.width ?? null, alto: a.height ?? null, storage_path: storagePath,
-        } });
+  // 0) respaldo completo en el bucket "respaldos" (los enlaces de adjuntos de Airtable caducan en unas horas)
+  await subir("respaldos", `${carpeta}/datos.json`,
+    JSON.stringify({ base: BASE, fecha: new Date().toISOString(), esquema, registros: datos }), "application/json");
+  const adjuntos = [];
+  for (const t of TABLAS) {
+    for (const [campo, nombreCampo] of Object.entries(t.adjuntos ?? {})) {
+      for (const r of datos[t.id]) {
+        for (const [orden, a] of (r.fields[campo] ?? []).entries()) {
+          const res = await fetch(a.url);
+          if (!res.ok) { problemas.push(`No se pudo descargar el adjunto ${a.filename} de ${t.tabla}/${r.id}`); continue; }
+          const buf = new Uint8Array(await res.arrayBuffer());
+          const nombreSeguro = (a.filename || "archivo").replace(/[^\w.\-]+/g, "_");
+          const storagePath = `${t.tabla}/${r.id}/${a.id}-${nombreSeguro}`;
+          await subir("respaldos", `${carpeta}/adjuntos/${storagePath}`, buf, a.type);
+          adjuntos.push({ buf, fila: {
+            tabla: t.tabla, registro_id: r.id, campo: nombreCampo, orden, airtable_id: a.id, nombre: a.filename ?? null,
+            tipo_mime: a.type ?? null, tamano: a.size ?? buf.length, ancho: a.width ?? null, alto: a.height ?? null, storage_path: storagePath,
+          } });
+        }
       }
     }
   }
-}
-console.log(`Adjuntos descargados: ${adjuntos.length} (en ${path.join(DIR, "adjuntos")})`);
+  log.push(`Respaldo guardado en respaldos/${carpeta} (datos + ${adjuntos.length} adjuntos)`);
+  if (simular) return log.push("Modo simular: no se escribió nada en las tablas.");
 
-if (SIMULAR) {
-  informe();
-  console.log("\nModo --simular: no se escribió nada en Supabase.");
-  process.exit(problemas.length ? 1 : 0);
-}
-
-// 1) filas
-const nombrePorId = Object.fromEntries(esquema.flatMap((e) => e.fields.map((f) => [f.id, f.name])));
-for (const t of TABLAS) {
-  const filas = datos[t.id].map((r) => {
-    const fila = { id: r.id };
-    for (const [fld, [col, conv]] of Object.entries(t.campos)) fila[col] = conv(r.fields[fld]);
-    fila.creado_en ??= r.createdTime;
-    fila.modificado_en ??= fila.creado_en;
-    fila.airtable_raw = {
-      id: r.id, createdTime: r.createdTime,
-      fields: Object.fromEntries(Object.entries(r.fields).map(([k, v]) => [nombrePorId[k] ?? k, v])),
-    };
-    return fila;
-  });
-  await upsert(t.tabla, filas, "id");
-  console.log(`  ✔ ${t.tabla}: ${filas.length} filas`);
-}
-
-// 2) enlaces (se rehacen por completo para los registros importados)
-for (const t of TABLAS) {
-  const ids = datos[t.id].map((r) => r.id);
-  for (const l of t.enlaces ?? []) {
-    await borrarDonde(l.puente, l.cols[0], ids, l.extra);
-    const filas = datos[t.id].flatMap((r) =>
-      (r.fields[l.campo] ?? []).map((otro, orden) => ({ [l.cols[0]]: r.id, [l.cols[1]]: otro, orden, ...l.extra })));
-    if (filas.length) await upsert(l.puente, filas, [...l.cols, ...Object.keys(l.extra ?? {})].join(","));
+  // 1) filas
+  const nombrePorId = Object.fromEntries(esquema.flatMap((e) => e.fields.map((f) => [f.id, f.name])));
+  for (const t of TABLAS) {
+    const filas = datos[t.id].map((r) => {
+      const fila = { id: r.id };
+      for (const [fld, [col, conv]] of Object.entries(t.campos)) fila[col] = conv(r.fields[fld]);
+      fila.creado_en ??= r.createdTime;
+      fila.modificado_en ??= fila.creado_en;
+      fila.airtable_raw = {
+        id: r.id, createdTime: r.createdTime,
+        fields: Object.fromEntries(Object.entries(r.fields).map(([k, v]) => [nombrePorId[k] ?? k, v])),
+      };
+      return fila;
+    });
+    await upsert(t.tabla, filas, "id");
   }
-}
-console.log("  ✔ enlaces");
 
-// 3) adjuntos → Storage
-for (const { buf, fila } of adjuntos) {
-  await sb(`/storage/v1/object/adjuntos/${fila.storage_path.split("/").map(encodeURIComponent).join("/")}`, {
-    method: "POST",
-    headers: { "Content-Type": fila.tipo_mime || "application/octet-stream", "x-upsert": "true" },
-    body: buf,
-  });
-}
-if (adjuntos.length) await upsert("adjuntos", adjuntos.map((a) => a.fila), "airtable_id");
-console.log(`  ✔ adjuntos: ${adjuntos.length}`);
-
-// 4) verificación
-console.log("\nVerificando…");
-for (const t of TABLAS) {
-  comparar(t.tabla, datos[t.id].length, await contar(t.tabla));
-  for (const l of t.enlaces ?? []) {
-    const esperado = datos[t.id].reduce((n, r) => n + (r.fields[l.campo]?.length ?? 0), 0);
-    comparar(`${t.tabla}.${nombrePorId[l.campo]} → ${l.puente}`, esperado, await contar(l.puente, l.extra));
+  // 2) enlaces (se rehacen por completo para los registros importados)
+  for (const t of TABLAS) {
+    const ids = datos[t.id].map((r) => r.id);
+    for (const l of t.enlaces ?? []) {
+      await borrarDonde(l.puente, l.cols[0], ids, l.extra);
+      const filas = datos[t.id].flatMap((r) =>
+        (r.fields[l.campo] ?? []).map((otro, orden) => ({ [l.cols[0]]: r.id, [l.cols[1]]: otro, orden, ...l.extra })));
+      if (filas.length) await upsert(l.puente, filas, [...l.cols, ...Object.keys(l.extra ?? {})].join(","));
+    }
   }
-  for (const [campo, nombreCampo] of Object.entries(t.adjuntos ?? {})) {
-    const esperado = datos[t.id].reduce((n, r) => n + (r.fields[campo]?.length ?? 0), 0);
-    comparar(`${t.tabla}.${nombreCampo} (adjuntos)`, esperado, await contar("adjuntos", { tabla: t.tabla, campo: nombreCampo }));
+
+  // 3) adjuntos → Storage (las filas de adjuntos se rehacen: si se quitó uno en Airtable, se quita aquí)
+  for (const t of TABLAS) {
+    if (t.adjuntos) await borrarDonde("adjuntos", "registro_id", datos[t.id].map((r) => r.id), { tabla: t.tabla });
   }
-}
-informe();
-process.exit(problemas.length ? 1 : 0);
+  for (const { buf, fila } of adjuntos) await subir("adjuntos", fila.storage_path, buf, fila.tipo_mime);
+  if (adjuntos.length) await upsert("adjuntos", adjuntos.map((a) => a.fila), "airtable_id");
 
-/* ---------- utilidades ---------- */
-
-function comparar(que, airtableN, supabaseN) {
-  const ok = airtableN === supabaseN;
-  console.log(`  ${ok ? "✔" : "✘"} ${que}: Airtable ${airtableN} · Supabase ${supabaseN}`);
-  if (!ok) problemas.push(`No cuadra ${que}: Airtable ${airtableN}, Supabase ${supabaseN}`);
-}
-
-function informe() {
-  if (!problemas.length) return console.log("\nTodo cuadra. ✔");
-  console.log(`\n${problemas.length} aviso(s):`);
-  for (const p of problemas) console.log(`  • ${p}`);
+  // 4) verificación
+  for (const t of TABLAS) {
+    comparar(t.tabla, datos[t.id].length, await contar(t.tabla));
+    for (const l of t.enlaces ?? []) {
+      const esperado = datos[t.id].reduce((n, r) => n + (r.fields[l.campo]?.length ?? 0), 0);
+      comparar(`${t.tabla}.${nombrePorId[l.campo]} → ${l.puente}`, esperado, await contar(l.puente, l.extra));
+    }
+    for (const [campo, nombreCampo] of Object.entries(t.adjuntos ?? {})) {
+      const esperado = datos[t.id].reduce((n, r) => n + (r.fields[campo]?.length ?? 0), 0);
+      comparar(`${t.tabla}.${nombreCampo} (adjuntos)`, esperado, await contar("adjuntos", { tabla: t.tabla, campo: nombreCampo }));
+    }
+  }
 }
 
 function espera(ms) {
@@ -356,6 +349,5 @@ function espera(ms) {
 }
 
 function salir(msg) {
-  console.error(msg);
-  process.exit(1);
+  throw new Error(msg);
 }
