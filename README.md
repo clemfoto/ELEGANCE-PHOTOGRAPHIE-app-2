@@ -73,3 +73,17 @@ Las tareas programadas (`netlify/functions/auto-*.mjs`) solo corren en el despli
 - **Login**: email + contraseña con código de invitación personal (sin Auth.js ni proveedor de email). Solo entran miembros de Equipo con `Activo` marcado y la invitación no cancelada.
 - **Borrar** registros solo lo puede hacer un Administrador.
 - Fotos: se comprimen en el móvil (≤1600 px) antes de subirlas; máximo 5 MB por archivo (límite de Airtable).
+
+## Migración a Supabase (en curso)
+
+Airtable sigue siendo la base en uso hasta terminar la migración; no se borra nada de Airtable.
+
+1. `supabase/migrations/20261027000000_esquema_inicial.sql`: tablas equivalentes a las de Airtable. Cada fila conserva su ID `rec…` y su registro original en `airtable_raw`; los enlaces van en tablas puente y los adjuntos en el bucket privado `adjuntos`.
+2. `scripts/migrar-airtable-a-supabase.mjs`: copia Airtable → Supabase y verifica conteos de filas, enlaces y adjuntos.
+
+```bash
+AIRTABLE_TOKEN=… node scripts/migrar-airtable-a-supabase.mjs --simular      # solo respaldo + análisis
+AIRTABLE_TOKEN=… SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/migrar-airtable-a-supabase.mjs
+```
+
+Cada ejecución guarda un respaldo completo (JSON + adjuntos) en `respaldo/` (no se sube a git). Se puede repetir: la última ejecución deja Supabase igual que Airtable.
