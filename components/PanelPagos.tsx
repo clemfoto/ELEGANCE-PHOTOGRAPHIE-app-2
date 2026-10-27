@@ -1,0 +1,81 @@
+import { leerPagos } from "@/lib/pagos";
+import { ESTADOS_CONTRATO, leerContrato, tugirosuiteListo, type ContratoTGS } from "@/lib/tugirosuite";
+import { fecha } from "@/lib/formato";
+import FormPagos from "@/components/FormPagos";
+import AccionesContrato from "@/components/AccionesContrato";
+
+/**
+ * Ficha de cliente (solo administrador): precio de cada servicio, IVA, depósito y balance,
+ * y el contrato e invoice de TuGiroSuite (preparar, revisar, enviar).
+ */
+export default async function PanelPagos({ id }: { id: string }) {
+  const p = await leerPagos(id);
+  if (!p) return null;
+
+  let contrato: ContratoTGS | null = null;
+  let errorContrato = "";
+  if (p.contrato) {
+    try {
+      contrato = await leerContrato(p.contrato);
+    } catch (e) {
+      errorContrato = (e as Error).message;
+    }
+  }
+  const estado = contrato?.estado ?? "";
+
+  return (
+    <>
+      <section className="tarjeta bloque">
+        <h2 className="seccion-titulo">Costo y pagos</h2>
+        <FormPagos p={p} bloqueado={Boolean(p.contrato && estado !== "borrador")} />
+      </section>
+
+      <section className="tarjeta bloque">
+        <h2 className="seccion-titulo">
+          Contrato e invoice
+          {contrato && <span className={`chip-contrato ${estado}`}>{ESTADOS_CONTRATO[estado] ?? estado}</span>}
+        </h2>
+        {!tugirosuiteListo() ? (
+          <p className="nota-chica">Falta configurar TUGIROSUITE_API_KEY en Netlify.</p>
+        ) : !p.contrato ? (
+          <>
+            <p className="nota-chica">
+              TuGiroSuite rellena el contrato y el invoice del depósito con los servicios y pagos de arriba. Los revisas aquí
+              antes de mandarlos al cliente. El invoice solo se manda cuando ya se recibió el depósito.
+            </p>
+            <AccionesContrato id={id} modo="preparar" />
+          </>
+        ) : (
+          <>
+            {errorContrato && <p className="error">No se pudo leer el contrato {p.contrato}: {errorContrato}</p>}
+            <p className="nota-chica">Contrato {p.contrato}</p>
+            {contrato && (
+              <ul className="docs-contrato">
+                {contrato.documentos.map((d) => (
+                  <li key={d.id}>
+                    <a href={`/api/contratos/${id}?doc=${encodeURIComponent(d.id)}`} target="_blank" rel="noopener">
+                      📄 {d.titulo}
+                    </a>
+                    <span className="nota-chica">
+                      {d.solo_lectura
+                        ? d.estado === "borrador" ? "se manda adjunto" : "enviado"
+                        : d.firmado_cliente ? `firmado el ${fecha(d.firmado_cliente.slice(0, 10))}` : ESTADOS_CONTRATO[d.estado] ?? d.estado}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {estado === "borrador" && (
+              <p className="nota-chica">
+                Al enviarlo, el cliente recibe por email el enlace para firmar el contrato y el invoice adjunto, y el depósito
+                queda marcado como pagado{p.depositoPagadoEn ? "" : " con fecha de hoy"}.
+              </p>
+            )}
+            {estado === "completo" && <p className="nota-chica">Firmado por el cliente y por Elegance. Lo tienes también en TuGiroSuite.</p>}
+            <AccionesContrato id={id} modo={estado === "borrador" || errorContrato ? "revisar" : "enviado"} />
+          </>
+        )}
+      </section>
+    </>
+  );
+}

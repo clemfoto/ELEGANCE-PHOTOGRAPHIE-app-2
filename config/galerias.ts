@@ -181,7 +181,7 @@ export const GALERIAS: Record<string, Galeria> = {
     venue: "Venue",
     team: "Team Members",
     confirmados: "Confirmados",
-    precio: "costo",
+    precio: "Costo total",
     relacionados: [
       { campo: "Tareas", titulo: "Tareas" },
       { campo: "Entrega", titulo: "Entregas" },
@@ -231,6 +231,7 @@ export const GALERIAS: Record<string, Galeria> = {
       nombre: ["nombre del lead", "nombre del cliente"],
       fecha: ["fecha de evento", "fecha del evento"],
       venue: ["Venue", "Venue"],
+      email: ["Email", "Email"],
       notas: ["Notas de Lead", "solicitud especial"],
       estadoCliente: ["ESTADO DEL CLIENTE", "TENTATIVO"],
       estadoLeadGanado: "Ganado",

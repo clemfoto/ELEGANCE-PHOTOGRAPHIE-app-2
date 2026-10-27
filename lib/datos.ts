@@ -71,6 +71,15 @@ function db(): pg.Pool {
   return pool;
 }
 
+/** Consulta SQL directa (solo servidor), para lo que no encaja en los registros genéricos. */
+export async function sql<T extends pg.QueryResultRow = Record<string, unknown>>(texto: string, params: unknown[] = []): Promise<T[]> {
+  try {
+    return (await db().query<T>(texto, params)).rows;
+  } catch (e) {
+    throw traducirError(e);
+  }
+}
+
 const ident = (nombre: string) => `"${nombre.replace(/"/g, '""')}"`;
 
 function mapaDe(tableId: string): MapaTabla {
@@ -366,16 +375,21 @@ async function escribir(tableId: string, id: string | null, campos: Record<strin
     }
 
     for (const [e, otros] of enlaces) {
+      // Se quitan solo los enlaces que ya no están; los que siguen conservan sus datos (p. ej. el precio
+      // de un servicio para ese cliente) y solo cambian de orden.
       const filtro = Object.entries(e.filtro ?? {});
       await cx.query(
-        `delete from public.${ident(e.puente)} where ${ident(e.propia)} = $1 ${filtro.map(([k], i) => `and ${ident(k)} = $${i + 2}`).join(" ")}`,
-        [id, ...filtro.map(([, v]) => v)],
+        `delete from public.${ident(e.puente)} where ${ident(e.propia)} = $1
+           ${filtro.map(([k], i) => `and ${ident(k)} = $${i + 3}`).join(" ")} and not (${ident(e.otra)} = any($2))`,
+        [id, otros, ...filtro.map(([, v]) => v)],
       );
       for (const [orden, otro] of otros.entries()) {
-        const cols = [e.propia, e.otra, "orden", ...filtro.map(([k]) => k)];
+        const clave = [e.propia, e.otra, ...filtro.map(([k]) => k)];
+        const cols = [...clave, "orden"];
         await cx.query(
-          `insert into public.${ident(e.puente)} (${cols.map(ident).join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")})`,
-          [id, otro, orden, ...filtro.map(([, v]) => v)],
+          `insert into public.${ident(e.puente)} (${cols.map(ident).join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")})
+           on conflict (${clave.map(ident).join(", ")}) do update set orden = excluded.orden`,
+          [id, otro, ...filtro.map(([, v]) => v), orden],
         );
       }
     }

@@ -13,6 +13,7 @@ import { AccionLead, Pasos } from "@/components/vistas/Leads";
 import PanelAcceso from "@/components/PanelAcceso";
 import PanelTelegram from "@/components/PanelTelegram";
 import PanelConfirmacion from "@/components/PanelConfirmacion";
+import PanelPagos from "@/components/PanelPagos";
 import BotonAccion from "@/components/BotonAccion";
 import { DECISIONES, EQUIPO, GALERIAS, TABLAS } from "@/config/galerias";
 
@@ -62,6 +63,7 @@ export default async function Ficha({ params }: Props) {
       {ctx.t.id === EQUIPO.tabla && esAdmin(ctx.u) && <PanelAcceso r={r} esYo={r.id === ctx.u.id} />}
       {ctx.t.id === EQUIPO.tabla && esAdmin(ctx.u) && <PanelTelegram r={r} />}
       {ctx.t.id === TABLAS.clientes && esAdmin(ctx.u) && <PanelConfirmacion r={r} />}
+      {ctx.t.id === TABLAS.clientes && esAdmin(ctx.u) && <PanelPagos id={r.id} />}
 
       {ctx.g.vista === "tareas" && <EventoDeTarea r={r} ctx={ctx} />}
 
