@@ -1,5 +1,5 @@
 import "server-only";
-import { getEsquema, getRegistros, type AirRecord } from "@/lib/airtable";
+import { getEsquema, getRegistros, type AirRecord } from "@/lib/datos";
 import type { Usuario } from "@/lib/auth";
 import { esAdmin, nombreDeRegistro, nombresDe, opciones, puedeVerTabla, rutaTabla, textoConEnlaces } from "@/lib/esquema";
 import { dinero, texto } from "@/lib/formato";

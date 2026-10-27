@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import type { AirRecord } from "@/lib/airtable";
+import type { AirRecord } from "@/lib/datos";
 import { requireUsuario } from "@/lib/auth";
 import { enlacesGlobales } from "@/lib/contexto";
 import { esAdmin, nombreDeRegistro } from "@/lib/esquema";

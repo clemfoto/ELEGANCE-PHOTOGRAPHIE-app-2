@@ -7,7 +7,7 @@ import {
   getRegistrosSinCache,
   tagTabla,
   type AirRecord,
-} from "@/lib/airtable";
+} from "@/lib/datos";
 import { campoPrincipal, nombreDeRegistro, opciones, textoConEnlaces, textoPrincipal, valorSeleccion } from "@/lib/esquema";
 import { diasHasta, fecha, hoyISO, moneda, texto } from "@/lib/formato";
 import { aNumero } from "@/lib/lista";

@@ -1,4 +1,4 @@
-import type { AirRecord } from "@/lib/airtable";
+import type { AirRecord } from "@/lib/datos";
 import { codigoVinculo, nombreBot } from "@/lib/telegram";
 import { AUTOMATIZACIONES } from "@/config/galerias";
 import CompartirTexto from "@/components/CompartirTexto";

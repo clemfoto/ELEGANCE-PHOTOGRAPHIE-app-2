@@ -1,4 +1,4 @@
-import type { AirRecord, Field } from "@/lib/airtable";
+import type { AirRecord, Field } from "@/lib/datos";
 import { texto } from "@/lib/formato";
 
 export const val = (r: AirRecord, f?: Field) => (f ? r.fields[f.name] : undefined);

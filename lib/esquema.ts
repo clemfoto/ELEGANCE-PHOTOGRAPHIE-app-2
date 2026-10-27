@@ -1,5 +1,5 @@
 import "server-only";
-import { getEsquema, getRegistros, type Field, type Table } from "@/lib/airtable";
+import { getEsquema, getRegistros, type Field, type Table } from "@/lib/datos";
 import { CAMPOS_OCULTOS, CAMPOS_SOLO_BOTONES, EQUIPO, GALERIAS, TABLAS, NAV_MAS, NAV_PRINCIPAL, TABLAS_OCULTAS, TABLAS_ROL_EQUIPO } from "@/config/galerias";
 import type { Usuario } from "@/lib/auth";
 

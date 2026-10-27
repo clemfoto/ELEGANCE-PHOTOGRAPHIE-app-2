@@ -1,33 +1,25 @@
 # Elegance Photographie — app de gestión
 
-App interna (PWA, móvil primero) sobre la base de Airtable **Elegance Photographie CRM** (`appV0PordtxxqzY5C`). Es independiente de la app de Dreamcatcher Films. Ver `CLAUDE.md` para los requisitos.
+App interna (PWA, móvil primero) sobre Supabase (proyecto `elegance-photographie`). Los datos vienen de la antigua base de Airtable **Elegance Photographie CRM** (`appV0PordtxxqzY5C`). Es independiente de la app de Dreamcatcher Films. Ver `CLAUDE.md` para los requisitos.
 
 ## Puesta en marcha
 
 ```bash
 npm install
-cp .env.example .env.local   # rellenar las variables
+cp .env.example .env.local   # rellenar las variables (Supabase, AUTH_SECRET, Telegram)
 npm run dev                  # http://localhost:3000
 ```
 
-### Probar sin Airtable ni email
+## Despliegue en Netlify (sitio `ep-app`, rama `main`)
 
-```bash
-npm run dev:mock
-```
+Variables de entorno (Netlify → Project configuration → Environment variables):
 
-Arranca un Airtable falso con datos inventados (`scripts/mock-airtable.mjs`).
-Entra con `admin@elegance.test` o `socio@elegance.test` (Administradores) o `equipo@elegance.test` (Equipo), contraseña `demo1234`.
-Para probar una invitación: `/registro` con `fede@elegance.test` y el código `EP-TEST-2345`.
+- `DATABASE_URL`: Supabase → botón **Connect** → *Transaction pooler* (puerto 6543), con la contraseña de la base.
+- `SUPABASE_URL`: `https://icbewzujzrwbngmlwmto.supabase.co`.
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase → Project Settings → API Keys → `service_role` (secreta).
+- `AUTH_SECRET`: `openssl rand -base64 32`.
 
-## Despliegue en Vercel
-
-1. Importar el repositorio en Vercel (framework: Next.js, sin más ajustes).
-2. Añadir las variables de entorno de `.env.example`:
-   - `AIRTABLE_TOKEN`: Personal Access Token con `data.records:read`, `data.records:write` y `schema.bases:read`, limitado a la base.
-   - `AIRTABLE_BASE_ID`: `appV0PordtxxqzY5C` (base de Elegance; nunca la de Dreamcatcher).
-   - `AUTH_SECRET`: `openssl rand -base64 32`.
-3. Desplegar. En el móvil: abrir la URL → Compartir → "Añadir a pantalla de inicio" (iPhone) o "Instalar app" (Android).
+En el móvil: abrir la URL → Compartir → "Añadir a pantalla de inicio" (iPhone) o "Instalar app" (Android).
 
 ### Variables de Telegram (automatizaciones)
 
@@ -55,7 +47,7 @@ Las tareas programadas (`netlify/functions/auto-*.mjs`) solo corren en el despli
 | Carpeta | Qué hay |
 | --- | --- |
 | `config/galerias.ts` | **Toda la configuración**: IDs de tablas, permisos, navegación, colores de chips y galerías a medida. |
-| `lib/airtable.ts` | Cliente de Airtable (solo servidor): esquema, lectura con caché, escritura, subida de adjuntos, cola de ~4 peticiones/s. |
+| `lib/datos.ts`, `lib/mapa.ts` | Datos en Supabase (solo servidor): esquema (`app_esquema`), lectura con caché, escritura en transacción, enlaces y archivos. Devuelve los registros con la forma que tenía Airtable. |
 | `lib/esquema.ts` | Campos visibles, solo lectura, "(antiguo)", permisos por tabla y navegación. |
 | `lib/auth.ts`, `lib/clave.ts`, `lib/token.ts`, `proxy.ts` | Email + contraseña con código de invitación personal; cookie de sesión firmada de 30 días. El rol y el acceso se releen de Equipo en cada petición. |
 | `app/(app)/inicio`, `lib/panel.ts` | Panel "Lo que necesita decisión" (entregas en revisión, gastos por aprobar, leads sin contacto, pagos vencidos, clientes sin team, fechas duplicadas). Límites en `DECISIONES`. |
@@ -67,18 +59,17 @@ Las tareas programadas (`netlify/functions/auto-*.mjs`) solo corren en el despli
 
 ### Notas
 
-- **Tablas y campos nuevos** aparecen solos (el esquema se refresca cada 5 min). Las tablas nuevas salen en "Más" y solo las ve el Administrador; para dárselas al rol Equipo, añadir su ID a `TABLAS_ROL_EQUIPO`.
-- **Caché**: las lecturas se reutilizan 30 s (`CACHE_SEGUNDOS`) y se invalidan al guardar desde la app. Los cambios hechos directamente en Airtable tardan como mucho eso en verse.
-- **Límite de la API**: el plan gratuito de Airtable tiene un tope mensual de llamadas; con uso diario conviene un plan de pago.
+- **Campos nuevos**: migración en `supabase/migrations/`, entrada en `app_esquema` y línea en `lib/mapa.ts` (el esquema se refresca cada 5 min). Las tablas nuevas salen en "Más" y solo las ve el Administrador; para dárselas al rol Equipo, añadir su ID a `TABLAS_ROL_EQUIPO`.
+- **Caché**: las lecturas se reutilizan 30 s (`CACHE_SEGUNDOS`) y se invalidan al guardar desde la app. Los cambios hechos directamente en Supabase tardan como mucho eso en verse.
 - **Login**: email + contraseña con código de invitación personal (sin Auth.js ni proveedor de email). Solo entran miembros de Equipo con `Activo` marcado y la invitación no cancelada.
 - **Borrar** registros solo lo puede hacer un Administrador.
-- Fotos: se comprimen en el móvil (≤1600 px) antes de subirlas; máximo 5 MB por archivo (límite de Airtable).
+- Fotos: se comprimen en el móvil (≤1600 px) antes de subirlas; máximo 5 MB por archivo.
 
-## Migración a Supabase (en curso)
+## Migración desde Airtable
 
-Airtable sigue siendo la base en uso hasta terminar la migración; no se borra nada de Airtable.
 Proyecto Supabase: `elegance-photographie` (organización Elegance Photographie, plan Pro).
 
 1. `supabase/migrations/20261027000000_esquema_inicial.sql`: tablas equivalentes a las de Airtable. Cada fila conserva su ID `rec…` y su registro original en `airtable_raw`; los enlaces van en tablas puente y los adjuntos en el bucket privado `adjuntos`.
 2. `supabase/migrations/20261027000100_control_migracion.sql`: clave de la función de importación y bucket privado `respaldos`.
-3. `supabase/functions/migrar-airtable`: Edge Function que respalda Airtable completo en `respaldos/`, copia todo a Supabase y verifica conteos de filas, enlaces y adjuntos. Necesita el secreto `AIRTABLE_TOKEN` (solo lectura) y la cabecera `x-migracion-clave` (tabla `migracion_clave`). `?simular=1` solo hace el respaldo. Se puede repetir: la última ejecución deja Supabase igual que Airtable.
+3. `supabase/migrations/20261027000200_esquema_app.sql`: tabla `app_esquema` con el esquema que lee la app.
+4. `supabase/functions/migrar-airtable`: Edge Function que respalda Airtable completo en `respaldos/`, copia datos y esquema a Supabase y verifica conteos de filas, enlaces y adjuntos. Necesita el secreto `AIRTABLE_TOKEN` (solo lectura) y la cabecera `x-migracion-clave` (tabla `migracion_clave`). `?simular=1` solo hace el respaldo. Se puede repetir: la última ejecución deja Supabase igual que Airtable.

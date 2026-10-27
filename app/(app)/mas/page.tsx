@@ -2,7 +2,7 @@ import Marca from "@/components/Marca";
 import Link from "next/link";
 import { Icono } from "@/components/Iconos";
 import PanelAutomatizaciones from "@/components/PanelAutomatizaciones";
-import { getRegistros } from "@/lib/airtable";
+import { getRegistros } from "@/lib/datos";
 import { requireUsuario } from "@/lib/auth";
 import { esAdmin, navegacion } from "@/lib/esquema";
 import { chatAdmin, codigoVinculo, nombreBot, telegramConfigurado } from "@/lib/telegram";

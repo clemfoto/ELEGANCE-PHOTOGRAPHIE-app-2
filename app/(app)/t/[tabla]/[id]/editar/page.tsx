@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRegistro } from "@/lib/airtable";
+import { getRegistro } from "@/lib/datos";
 import { contextoTabla } from "@/lib/contexto";
 import { campoPrincipal, rutaTabla, textoPrincipal } from "@/lib/esquema";
 import { camposFormulario } from "@/lib/formulario";

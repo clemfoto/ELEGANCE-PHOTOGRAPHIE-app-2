@@ -295,7 +295,8 @@ async function migrar(simular, log, problemas) {
   log.push(`Respaldo guardado en respaldos/${carpeta} (datos + ${adjuntos.length} adjuntos)`);
   if (simular) return log.push("Modo simular: no se escribió nada en las tablas.");
 
-  // 1) filas
+  // 1) esquema que usa la app (galerías y formularios) y filas
+  await upsert("app_esquema", esquema.map((e, orden) => ({ id: e.id, orden, definicion: e })), "id");
   const nombrePorId = Object.fromEntries(esquema.flatMap((e) => e.fields.map((f) => [f.id, f.name])));
   for (const t of TABLAS) {
     const filas = datos[t.id].map((r) => {

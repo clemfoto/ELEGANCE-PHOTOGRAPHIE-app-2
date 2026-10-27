@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getRegistros } from "@/lib/airtable";
+import { getRegistros } from "@/lib/datos";
 import { aUsuario, tieneAcceso } from "@/lib/auth";
 import { aIcs, eventosCalendario } from "@/lib/calendario";
 import { comprobarFirmaCorta } from "@/lib/token";

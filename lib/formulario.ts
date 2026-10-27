@@ -1,5 +1,5 @@
 import "server-only";
-import type { AirRecord } from "@/lib/airtable";
+import type { AirRecord } from "@/lib/datos";
 import type { Contexto } from "@/lib/contexto";
 import { campoPrincipal, esSoloLectura } from "@/lib/esquema";
 import { isoALocal, texto } from "@/lib/formato";

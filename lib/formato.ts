@@ -1,5 +1,5 @@
 import { COLORES_OPCION, COLOR_POR_DEFECTO, MONEDA, ZONA_HORARIA } from "@/config/galerias";
-import type { Field } from "@/lib/airtable";
+import type { Field } from "@/lib/datos";
 
 /** "2026-10-12" → Date a mediodía local (evita saltos de día por zona horaria). */
 export function parseFecha(v: unknown): Date | null {

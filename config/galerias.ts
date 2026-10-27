@@ -1,10 +1,10 @@
 /**
  * Configuración de la app en un solo lugar.
  *
- * Todo lo que no aparece aquí se genera solo a partir del esquema de Airtable:
- * si el dueño crea una tabla o un campo nuevo, sale en la app sin tocar código.
+ * Todo lo que no aparece aquí se genera solo a partir del esquema (tabla app_esquema de Supabase):
+ * un campo u opción nueva añadida allí (y en lib/mapa.ts) sale en la app sin tocar las pantallas.
  * Las tablas se identifican por su ID (no cambia aunque se renombre la tabla);
- * los campos, por su nombre tal como aparece en Airtable.
+ * los campos, por su nombre tal como aparece en el esquema.
  */
 
 export type Rol = "Administrador" | "Equipo";
@@ -84,7 +84,7 @@ export const CAMPOS_OCULTOS: string[] = [
 /** Campos que la app muestra pero no deja editar en el formulario (se cambian con botones). */
 export const CAMPOS_SOLO_BOTONES: string[] = ["Aprobación", "Aprobado por"];
 
-/** Segundos que se reutilizan las lecturas de Airtable antes de volver a pedirlas. */
+/** Segundos que se reutilizan las lecturas de la base de datos antes de volver a pedirlas. */
 export const CACHE_SEGUNDOS = 30;
 
 /** Formato de números y dinero (el símbolo sale de cada campo de Airtable). */

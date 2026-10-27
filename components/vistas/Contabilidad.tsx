@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { AirRecord } from "@/lib/airtable";
+import type { AirRecord } from "@/lib/datos";
 import { cfg, type Contexto } from "@/lib/contexto";
 import { campoPrincipal, rutaTabla, textoPrincipal } from "@/lib/esquema";
 import { fecha, moneda } from "@/lib/formato";

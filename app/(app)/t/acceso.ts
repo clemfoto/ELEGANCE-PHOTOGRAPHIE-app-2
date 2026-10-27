@@ -1,6 +1,6 @@
 "use server";
 import { updateTag } from "next/cache";
-import { actualizarRegistro, getRegistro, tagTabla } from "@/lib/airtable";
+import { actualizarRegistro, getRegistro, tagTabla } from "@/lib/datos";
 import { requireAdmin } from "@/lib/auth";
 import { generarCodigo } from "@/lib/clave";
 import { EQUIPO, type Rol } from "@/config/galerias";
@@ -13,7 +13,7 @@ async function guardar(id: string, fields: Record<string, unknown>): Promise<Res
     await actualizarRegistro(EQUIPO.tabla, id, fields);
   } catch (e) {
     console.error("[acceso] no se pudo guardar en Equipo:", e);
-    return { error: `Airtable no aceptó el cambio: ${(e as Error).message}` };
+    return { error: `No se pudo guardar el cambio: ${(e as Error).message}` };
   }
   updateTag(tagTabla(EQUIPO.tabla));
   return {};

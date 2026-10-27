@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getRegistro, getRegistros, type AirRecord } from "@/lib/airtable";
+import { getRegistro, getRegistros, type AirRecord } from "@/lib/datos";
 import { cfg, contextoTabla, type Contexto } from "@/lib/contexto";
 import { campoPrincipal, esAdmin, esSoloLectura, rutaTabla, textoPrincipal, titulo } from "@/lib/esquema";
 import { fecha, texto } from "@/lib/formato";
@@ -79,7 +79,7 @@ export default async function Ficha({ params }: Props) {
             <div key={f.id} className="campo-ficha">
               <dt>
                 {f.name}
-                {esSoloLectura(f) && <span className="calc" title="Se calcula en Airtable"> · auto</span>}
+                {esSoloLectura(f) && <span className="calc" title="Se calcula automáticamente"> · auto</span>}
               </dt>
               <dd>
                 <Valor f={f} v={r.fields[f.name]} enlaces={ctx.enlaces} />
