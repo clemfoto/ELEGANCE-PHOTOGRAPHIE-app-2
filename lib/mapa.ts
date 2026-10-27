@@ -64,6 +64,7 @@ export const MAPA: Record<string, MapaTabla> = {
       fldbRfcqIdObgAlub: c("descripcion"),
       fldgpOxA9X8JgA6RX: c("notas_internas"),
       fldb4a6ctlCRgHjWP: c("clientes_texto"),
+      fldEPservPrecio01: c("precio", "numero"),
     },
     enlaces: {
       fldGfTCoU054QIzMZ: { puente: "cliente_servicios", propia: "servicio_id", otra: "cliente_id" },
@@ -77,12 +78,16 @@ export const MAPA: Record<string, MapaTabla> = {
       fldFVYDOxXffeoQzh: c("nombre"),
       fldJbw2DTqm2vPLKR: c("fecha_evento", "fecha"),
       fldsxlbLW4Qpnztr2: c("venue"),
-      fldX48Mc1qMb95Kpq: c("costo", "numero"),
       fldPnRUSZKOqXtkFG: c("solicitud_especial"),
       fld90ICzfbaFGSAlz: c("team_members_antiguo", "lista"),
       fldgsuUk3KfbitzPc: c("estado", "lista"),
       fldqePjDnPFiAs14s: c("notificado", "casilla"),
       fldF8DxVth6rxiM9u: c("aviso_confirmado", "casilla"),
+      fldEPclienEmail01: c("email"),
+      fldEPclienTelef01: c("telefono"),
+      fldEPclienIva0001: c("aplica_iva", "casilla"),
+      fldEPclienDepos01: c("deposito", "numero"),
+      fldEPclienDepPag1: c("deposito_pagado_en", "fecha"),
     },
     enlaces: {
       fldjlxe5Ut8V7KwPJ: { puente: "cliente_servicios", propia: "cliente_id", otra: "servicio_id" },
@@ -97,6 +102,11 @@ export const MAPA: Record<string, MapaTabla> = {
     },
     adjuntos: { fldnvAtufMtm8ZLuC: "archivos" },
     calculados: {
+      // Precios por servicio (cliente_servicios.precio) + IVA: vista clientes_totales
+      fldX48Mc1qMb95Kpq: { vista: "clientes_totales", col: "total" },
+      fldEPclienSubtot1: { vista: "clientes_totales", col: "subtotal" },
+      fldEPclienImpIva1: { vista: "clientes_totales", col: "iva" },
+      fldEPclienBalanc1: { vista: "clientes_totales", col: "balance" },
       fld2mbR139wbyYrIe: { col: "creado_por", tipo: "json" },
       fld1UYWOqzIEOycTu: { col: "creado_en", tipo: "fechaHora" },
       fldewEFTeABXa1pM8: { col: "modificado_en", tipo: "fechaHora" },

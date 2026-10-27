@@ -27,6 +27,8 @@ AUTH_SECRET=
 TELEGRAM_BOT_TOKEN=          # token de @Eleganceapp_bot
 TELEGRAM_ADMIN_CHAT_ID=      # grupo "Eventos Elegance": -5184336877
 TELEGRAM_VIDEOS_CHAT_ID=     # grupo "VIDEOS ELEGANCE": -1003944478257
+TUGIROSUITE_URL=https://tugirosuite.com
+TUGIROSUITE_API_KEY=         # tgs_… de la cuenta de Elegance en TuGiroSuite (secreta)
 ```
 
 ### Cambios de estructura
@@ -41,14 +43,14 @@ Consultar siempre `app_esquema`; esta tabla es una referencia y puede quedar des
 
 | Tabla | ID (tabla Supabase) | Campo principal | Notas |
 | --- | --- | --- | --- |
-| Clientes | tbl6nQUYzRSY8PWZ4 (`clientes`) | nombre del cliente | fecha del evento, Venue, costo, ESTADO DEL CLIENTE (selección múltiple), servicios → SERVICIOS, Team Members → Equipo |
+| Clientes | tbl6nQUYzRSY8PWZ4 (`clientes`) | nombre del cliente | fecha del evento, Venue, Costo total (calculado), Email, Aplica IVA, Depósito, Balance, ESTADO DEL CLIENTE (selección múltiple), servicios → SERVICIOS, Team Members → Equipo |
 | Tareas | tbl4okeRHTWLcbwC7 (`tareas`) | tarea | Fecha Limite, Estado de Tarea, Responsables → Equipo, Cliente Asociado → Clientes |
 | VIDEOS (hace de Entrega) | tblltg6JFKtSwnXnm (`entregas`) | NOMBRE DEL CLIENTE | Status (selección simple), FECHA DE ENTREGA ORIGINAL, Cliente, Responsable Entrega |
 | Leads | tbl7sBK5QD0ZHIDMA (`leads`) | nombre del lead | fecha de evento, estado, 1er–4to Contacto → Equipo |
-| Contabilidad | tbl0hZCWeLtmriphU (`contabilidad`) | Concepto | Cliente, DEPOSITO, Fecha Depósito, Fecha Balance; Monto Total = rollup del costo; Monto Pendiente = fórmula |
+| Contabilidad | tbl0hZCWeLtmriphU (`contabilidad`) | Concepto | Cliente, DEPOSITO, Fecha Depósito, Fecha Balance; Monto Total = costo total de sus clientes (vista `clientes_totales`); Monto Pendiente = fórmula |
 | Gastos | tblVtMgHzjUYHX5nv (`gastos`) | GASTOS | Cantidad, Categoría, Comprobante, Persona que hizo el pago, Aprobación |
 | Equipo | tbljsGsSe2Ep1Fnjy (`equipo`) | Nombre | Rol, Email, Activo, campos de invitación (ocultos) |
-| SERVICIOS | tblst8FBjp9HUIU5v (`servicios`) | Nombre del Servicio | Catálogo de servicios enlazado desde Clientes |
+| SERVICIOS | tblst8FBjp9HUIU5v (`servicios`) | Nombre del Servicio | Catálogo de servicios enlazado desde Clientes; Precio de lista |
 | Calendario | tblSpztRvvebMefcg (`calendario`) | nombre del evento | Oculta en la app (`TABLAS_OCULTAS`): la app tiene su propio calendario |
 
 Reglas:
@@ -68,6 +70,8 @@ Reglas:
 Motor genérico: cualquier tabla de la base se muestra como lista de tarjetas, con su ficha de detalle y un formulario de alta/edición generados a partir del tipo de cada campo. Encima, configuración a medida (un único archivo, p. ej. `config/galerias.ts`) para las galerías principales:
 
 - **Clientes:** tarjetas con nombre, estado (chip de color), fecha del evento, servicio, venue, avatares del team y precio. Filtros por estado. La ficha muestra todos los campos y accesos a las tareas, entregas y pagos del cliente.
+- **Costo y pagos** (ficha de cliente, solo administrador): precio de cada servicio para ese cliente (`cliente_servicios.precio`; empieza con el de lista y se puede cambiar, p. ej. con descuento), "Aplica IVA" (16 % encima), depósito y balance. Costo total = suma de servicios + IVA (vista `clientes_totales`); si ningún servicio tiene precio se usa el costo que venía de Airtable. Todo en USD.
+- **Contrato e invoice** (misma ficha): TuGiroSuite (`lib/tugirosuite.ts`, API `/api/v1/contracts`) rellena el contrato (con o sin dron) y el invoice del depósito como borradores; se revisan los PDF (`/api/contratos/<id>`), y "Enviar al cliente" manda el enlace para firmar con el invoice adjunto y marca el depósito como pagado (`Depósito pagado` = hoy). El número queda en `clientes.tugirosuite_contrato_id`. La firma de Elegance se pone sola cuando el cliente firma.
 - **Tareas:** lista agrupada ("Esta semana" / "Próximas" / "Hechas"), marcar como hecha con un toque, fecha límite en rojo si vence pronto.
 - **Entrega:** tarjetas filtrables por status, con los cambios deseados destacados.
 - **Leads:** tarjetas con los cuatro contactos como pasos (1º–4º) y quién hizo cada uno; acción para convertir un lead en cliente.
