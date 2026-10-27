@@ -3,25 +3,13 @@
 -- * SERVICIOS.opciones: detalles que se pueden elegir para el resumen de un cliente (uno por línea),
 --   p. ej. "Sesión de compromiso" o "Álbum impreso 30x30".
 -- * clientes.resumen_opciones: los detalles elegidos para ese cliente. El texto libre sigue en
---   clientes.solicitud_especial, que pasa a llamarse "Resumen del servicio".
+--   clientes.solicitud_especial (campo "solicitud especial"; en la ficha se edita como "Resumen del servicio").
 -- * La descripción de cada servicio (servicios.descripcion) ya existía; ahora también va al contrato.
 
 alter table public.servicios add column opciones text;
 alter table public.clientes add column resumen_opciones text[] not null default '{}';
 
 /* ---------- esquema de la app ---------- */
-
--- Clientes: "solicitud especial" pasa a "Resumen del servicio".
-update public.app_esquema
-set definicion = jsonb_set(definicion, '{fields}', (
-  select jsonb_agg(
-           case when f->>'id' = 'fldPnRUSZKOqXtkFG'
-             then f || jsonb_build_object('name', 'Resumen del servicio',
-                                          'description', 'Detalle del servicio para este cliente. Va en el contrato, debajo de los servicios.')
-             else f end order by n)
-  from jsonb_array_elements(definicion->'fields') with ordinality as x(f, n)
-))
-where id = 'tbl6nQUYzRSY8PWZ4';
 
 -- SERVICIOS: opciones para el resumen.
 update public.app_esquema

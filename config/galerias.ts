@@ -232,7 +232,7 @@ export const GALERIAS: Record<string, Galeria> = {
       fecha: ["fecha de evento", "fecha del evento"],
       venue: ["Venue", "Venue"],
       email: ["Email", "Email"],
-      notas: ["Notas de Lead", "Resumen del servicio"],
+      notas: ["Notas de Lead", "solicitud especial"],
       estadoCliente: ["ESTADO DEL CLIENTE", "TENTATIVO"],
       estadoLeadGanado: "Ganado",
     },
@@ -346,7 +346,7 @@ export const AUTOMATIZACIONES = {
     telegramChatId: "Telegram Chat ID",
     /** "@usuario" de Telegram: sirve para reconocer a la persona cuando confirma desde el grupo. */
     telegramUsuario: "Usuario Telegram",
-    clienteSolicitudes: "Resumen del servicio",
+    clienteSolicitudes: "solicitud especial",
     clienteNotificado: "Notificado",
     clienteInvitados: "Invitados Telegram",
     clienteConfirmados: "Confirmados",
