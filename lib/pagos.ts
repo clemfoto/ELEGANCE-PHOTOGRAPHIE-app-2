@@ -6,7 +6,15 @@ import { sql } from "@/lib/datos";
  * IVA, depósito y balance. Los totales salen de la vista clientes_totales.
  */
 
-export type ServicioPrecio = { id: string; nombre: string; lista: number | null; precio: number | null };
+export type ServicioPrecio = {
+  id: string;
+  nombre: string;
+  lista: number | null;
+  precio: number | null;
+  descripcion: string | null;
+  /** Detalles que se pueden elegir para el resumen (Servicios → "Opciones del resumen"). */
+  opciones: string[];
+};
 export type Pagos = {
   id: string;
   nombre: string;
@@ -25,6 +33,9 @@ export type Pagos = {
   total: number;
   balance: number;
   contrato: string | null;
+  /** Resumen del servicio: detalles elegidos de las opciones de sus servicios y texto libre. */
+  resumenOpciones: string[];
+  resumenTexto: string;
 };
 
 export const IVA = 0.16;
@@ -42,24 +53,27 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     deposito: number | null;
     deposito_pagado_en: string | null;
     tugirosuite_contrato_id: string | null;
+    solicitud_especial: string | null;
+    resumen_opciones: string[];
     subtotal: number;
     iva: number;
     total: number;
     balance: number;
   }>(
     `select c.id, c.nombre, c.fecha_evento, c.venue, c.email, c.telefono, c.costo, c.aplica_iva, c.deposito,
-            c.deposito_pagado_en, c.tugirosuite_contrato_id, t.subtotal, t.iva, t.total, t.balance
+            c.deposito_pagado_en, c.tugirosuite_contrato_id, c.solicitud_especial, c.resumen_opciones, t.subtotal, t.iva, t.total, t.balance
        from public.clientes c join public.clientes_totales t on t.id = c.id
       where c.id = $1`,
     [id],
   );
   if (!c) return null;
-  const servicios = await sql<ServicioPrecio>(
-    `select s.id, coalesce(s.nombre, 'Servicio') as nombre, s.precio as lista, cs.precio
+  const filas = await sql<Omit<ServicioPrecio, "opciones"> & { opciones: string | null }>(
+    `select s.id, coalesce(s.nombre, 'Servicio') as nombre, s.precio as lista, cs.precio, s.descripcion, s.opciones
        from public.cliente_servicios cs join public.servicios s on s.id = cs.servicio_id
       where cs.cliente_id = $1 order by cs.orden, s.nombre`,
     [id],
   );
+  const servicios = filas.map((s) => ({ ...s, opciones: lineas(s.opciones) }));
   return {
     id: c.id,
     nombre: c.nombre ?? "",
@@ -77,6 +91,8 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     total: c.total,
     balance: c.balance,
     contrato: c.tugirosuite_contrato_id,
+    resumenOpciones: c.resumen_opciones ?? [],
+    resumenTexto: c.solicitud_especial ?? "",
   };
 }
 
@@ -86,7 +102,12 @@ export type CambiosPagos = {
   deposito: number | null;
   email: string | null;
   telefono: string | null;
+  resumenOpciones: string[];
+  resumenTexto: string;
 };
+
+const lineas = (t: string | null | undefined) =>
+  [...new Set((t ?? "").split(/\r?\n/).map((x) => x.replace(/^[-•*\s]+/, "").trim()).filter(Boolean))];
 
 const monto = (v: unknown) => {
   if (v == null || v === "") return null;
@@ -102,8 +123,17 @@ export async function guardarPagos(id: string, d: CambiosPagos): Promise<void> {
     await sql("update public.cliente_servicios set precio = $3 where cliente_id = $1 and servicio_id = $2", [id, servicio, monto(precio)]);
   }
   await sql(
-    `update public.clientes set aplica_iva = $2, deposito = $3, email = $4, telefono = $5 where id = $1`,
-    [id, Boolean(d.aplicaIva), monto(d.deposito), email, d.telefono?.trim() || null],
+    `update public.clientes set aplica_iva = $2, deposito = $3, email = $4, telefono = $5,
+            resumen_opciones = $6, solicitud_especial = $7 where id = $1`,
+    [
+      id,
+      Boolean(d.aplicaIva),
+      monto(d.deposito),
+      email,
+      d.telefono?.trim() || null,
+      [...new Set((d.resumenOpciones ?? []).map((x) => String(x).trim()).filter(Boolean))].slice(0, 50),
+      d.resumenTexto?.trim().slice(0, 4000) || null,
+    ],
   );
 }
 

@@ -21,6 +21,8 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
   const [deposito, setDeposito] = useState(aTexto(p.deposito));
   const [email, setEmail] = useState(p.email ?? "");
   const [telefono, setTelefono] = useState(p.telefono ?? "");
+  const [elegidas, setElegidas] = useState<string[]>(p.resumenOpciones);
+  const [resumenTexto, setResumenTexto] = useState(p.resumenTexto);
   const [pendiente, empezar] = useTransition();
   const [mensaje, setMensaje] = useState<{ ok?: string; error?: string }>({});
 
@@ -40,11 +42,20 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
         deposito: aNumero(deposito),
         email: email || null,
         telefono: telefono || null,
+        resumenOpciones: elegidas,
+        resumenTexto,
       });
       setMensaje(r.error ? { error: r.error } : { ok: "Guardado ✓" });
       router.refresh();
     });
   };
+
+  // Opciones para el resumen: las de sus servicios, más las ya elegidas que ya no estén en la lista
+  const grupos = p.servicios.filter((s) => s.opciones.length).map((s) => ({ titulo: s.nombre, opciones: s.opciones }));
+  const conocidas = new Set(grupos.flatMap((g) => g.opciones));
+  const sueltas = elegidas.filter((o) => !conocidas.has(o));
+  if (sueltas.length) grupos.push({ titulo: "Elegidas antes", opciones: sueltas });
+  const alternar = (o: string) => setElegidas(elegidas.includes(o) ? elegidas.filter((x) => x !== o) : [...elegidas, o]);
 
   return (
     <form className="form" onSubmit={guardar}>
@@ -64,6 +75,7 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
                 onChange={(e) => setPrecios({ ...precios, [s.id]: e.target.value })}
               />
             </span>
+            {s.descripcion && <span className="campo-ayuda">{s.descripcion}</span>}
             {s.lista != null && aNumero(precios[s.id]) !== s.lista && (
               <span className="campo-ayuda">
                 Precio de lista {dinero(s.lista)}
@@ -78,6 +90,32 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
       {!valores.length && p.costoAnterior != null && (
         <p className="nota-chica">Sin precios por servicio todavía: se usa el costo que venía de Airtable ({dinero(p.costoAnterior)}).</p>
       )}
+
+      <fieldset className="campo">
+        <legend className="campo-label">Resumen del servicio</legend>
+        <span className="campo-ayuda">Va en el contrato, debajo de los servicios.</span>
+        {grupos.map((g) => (
+          <div key={g.titulo} className="resumen-grupo">
+            {grupos.length > 1 && <span className="resumen-titulo">{g.titulo}</span>}
+            {g.opciones.map((o) => (
+              <label key={o} className="resumen-opcion">
+                <input type="checkbox" checked={elegidas.includes(o)} onChange={() => alternar(o)} />
+                <span>{o}</span>
+              </label>
+            ))}
+          </div>
+        ))}
+        {!grupos.length && (
+          <span className="campo-ayuda">Para elegir opciones, añádelas en Servicios → «Opciones del resumen».</span>
+        )}
+        <textarea
+          className="input"
+          rows={3}
+          value={resumenTexto}
+          placeholder="Detalle del servicio o solicitudes especiales"
+          onChange={(e) => setResumenTexto(e.target.value)}
+        />
+      </fieldset>
 
       <label className="campo campo-check">
         <span className="campo-label">Aplica IVA (16 %)</span>

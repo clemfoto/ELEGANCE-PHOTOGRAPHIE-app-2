@@ -1,10 +1,10 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { descartarContrato, enviarContrato, prepararContrato, type Resultado } from "@/app/(app)/t/pagos";
+import { descartarContrato, enviarContrato, firmarContrato, prepararContrato, type Resultado } from "@/app/(app)/t/pagos";
 
-/** Botones del contrato de TuGiroSuite: preparar (con o sin dron), enviar al cliente o descartar. */
-export default function AccionesContrato({ id, modo }: { id: string; modo: "preparar" | "revisar" | "enviado" }) {
+/** Botones del contrato de TuGiroSuite: preparar (con o sin dron), enviar o descartar, y firmar cuando el cliente ya firmó. */
+export default function AccionesContrato({ id, modo }: { id: string; modo: "preparar" | "revisar" | "firmar" | "reenviar" | "enviado" }) {
   const router = useRouter();
   const [pendiente, empezar] = useTransition();
   const [dron, setDron] = useState(false);
@@ -21,6 +21,28 @@ export default function AccionesContrato({ id, modo }: { id: string; modo: "prep
   };
 
   if (modo === "enviado") return null;
+  if (modo === "firmar" || modo === "reenviar") {
+    return (
+      <>
+        <button
+          type="button"
+          className={`btn btn-bloque ${modo === "firmar" ? "btn-primario" : "btn-secundario"}`}
+          disabled={pendiente}
+          onClick={() =>
+            correr(
+              () => firmarContrato(id),
+              modo === "firmar"
+                ? "¿Firmar el contrato y mandar la versión final al cliente y a Elegance? Revisa antes los documentos."
+                : "¿Mandar otra vez la versión final firmada al cliente y a Elegance?",
+            )
+          }
+        >
+          {pendiente ? "Enviando…" : modo === "firmar" ? "Firmar y enviar" : "Reenviar documentos firmados"}
+        </button>
+        {error && <p className="error">{error}</p>}
+      </>
+    );
+  }
   return (
     <>
       {modo === "preparar" ? (

@@ -3,6 +3,7 @@ import { ESTADOS_CONTRATO, leerContrato, tugirosuiteListo, type ContratoTGS } fr
 import { fecha } from "@/lib/formato";
 import FormPagos from "@/components/FormPagos";
 import AccionesContrato from "@/components/AccionesContrato";
+import DocumentosContrato from "@/components/DocumentosContrato";
 
 /**
  * Ficha de cliente (solo administrador): precio de cada servicio, IVA, depósito y balance,
@@ -50,20 +51,16 @@ export default async function PanelPagos({ id }: { id: string }) {
             {errorContrato && <p className="error">No se pudo leer el contrato {p.contrato}: {errorContrato}</p>}
             <p className="nota-chica">Contrato {p.contrato}</p>
             {contrato && (
-              <ul className="docs-contrato">
-                {contrato.documentos.map((d) => (
-                  <li key={d.id}>
-                    <a href={`/api/contratos/${id}?doc=${encodeURIComponent(d.id)}`} target="_blank" rel="noopener">
-                      📄 {d.titulo}
-                    </a>
-                    <span className="nota-chica">
-                      {d.solo_lectura
-                        ? d.estado === "borrador" ? "se manda adjunto" : "enviado"
-                        : d.firmado_cliente ? `firmado el ${fecha(d.firmado_cliente.slice(0, 10))}` : ESTADOS_CONTRATO[d.estado] ?? d.estado}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <DocumentosContrato
+                cliente={id}
+                docs={contrato.documentos.map((d) => ({
+                  id: d.id,
+                  titulo: d.titulo,
+                  nota: d.solo_lectura
+                    ? d.estado === "borrador" ? "se manda adjunto" : "enviado"
+                    : d.firmado_cliente ? `firmado por el cliente el ${fecha(d.firmado_cliente.slice(0, 10))}` : ESTADOS_CONTRATO[d.estado] ?? d.estado,
+                }))}
+              />
             )}
             {estado === "borrador" && (
               <p className="nota-chica">
@@ -71,8 +68,24 @@ export default async function PanelPagos({ id }: { id: string }) {
                 queda marcado como pagado{p.depositoPagadoEn ? "" : " con fecha de hoy"}.
               </p>
             )}
-            {estado === "completo" && <p className="nota-chica">Firmado por el cliente y por Elegance. Lo tienes también en TuGiroSuite.</p>}
-            <AccionesContrato id={id} modo={estado === "borrador" || errorContrato ? "revisar" : "enviado"} />
+            {estado === "falta_tu_firma" && (
+              <p className="nota-chica">
+                El cliente ya firmó. Revisa los documentos y toca «Firmar y enviar»: se pone tu firma y la versión final firmada
+                llega al cliente y a Elegance por email.
+              </p>
+            )}
+            {estado === "completo" && (
+              <p className="nota-chica">Firmado por el cliente y por Elegance. La versión final ya se mandó al cliente y a Elegance.</p>
+            )}
+            <AccionesContrato
+              id={id}
+              modo={
+                estado === "borrador" || errorContrato ? "revisar"
+                : estado === "falta_tu_firma" ? "firmar"
+                : estado === "completo" ? "reenviar"
+                : "enviado"
+              }
+            />
           </>
         )}
       </section>

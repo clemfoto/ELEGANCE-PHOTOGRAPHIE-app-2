@@ -58,11 +58,13 @@ export async function prepararContrato(id: string, dron: boolean): Promise<Resul
       cliente: { nombre: p.nombre.trim(), email: p.email!, ...(p.telefono ? { tel: p.telefono } : {}) },
       fecha_evento: p.fecha!,
       ...(p.venue ? { venue: p.venue } : {}),
-      servicios: p.servicios.map((s) => ({ nombre: s.nombre, precio: s.precio })),
+      servicios: p.servicios.map((s) => ({ nombre: s.nombre, precio: s.precio, ...(s.descripcion?.trim() ? { descripcion: s.descripcion.trim() } : {}) })),
+      resumen: { opciones: p.resumenOpciones, ...(p.resumenTexto.trim() ? { texto: p.resumenTexto.trim() } : {}) },
       total: p.total,
       deposito: p.deposito!,
       iva: p.aplicaIva,
       dron,
+      autofirma: false,
       avisoUrl: `${base}/t/clientes/${id}`,
     });
     await guardarContrato(id, no, "borrador");
@@ -77,6 +79,17 @@ export async function enviarContrato(id: string): Promise<Resultado> {
     if (!p?.contrato) throw new Error("Primero prepara el contrato.");
     await tgs.enviarContrato(p.contrato, p.nombre.trim());
     await marcarDepositoPagado(id, hoyISO());
+  });
+}
+
+/** Tras la firma del cliente: pone la firma de Elegance y manda los documentos firmados al cliente y a Elegance. */
+export async function firmarContrato(id: string): Promise<Resultado> {
+  await requireAdmin();
+  return intentar("firmar", async () => {
+    const p = await leerPagos(id);
+    if (!p?.contrato) throw new Error("Este cliente no tiene contrato.");
+    await tgs.firmarContrato(p.contrato);
+    await guardarContrato(id, p.contrato, "completo");
   });
 }
 
