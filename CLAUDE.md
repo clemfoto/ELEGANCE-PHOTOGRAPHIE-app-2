@@ -1,52 +1,55 @@
 # App de gestión — Elegance Photographie
 
-App interna de gestión para Elegance Photographie (fotografía y video de bodas y eventos). Es una copia independiente de la app de Dreamcatcher Films: **otro repositorio, otra base de Airtable y otro sitio de Netlify**; no comparten datos ni configuración. La usan el dueño y su equipo, **sobre todo desde el móvil**. No la usan los clientes finales. El proyecto lo desarrolla Clem para venderlo al videógrafo, con cuota de mantenimiento.
+App interna de gestión para Elegance Photographie (fotografía y video de bodas y eventos). Es una copia independiente de la app de Dreamcatcher Films: **otro repositorio, otra base de datos y otro sitio de Netlify**; no comparten datos ni configuración. La usan el dueño y su equipo, **sobre todo desde el móvil**. No la usan los clientes finales. El proyecto lo desarrolla Clem para venderlo al videógrafo, con cuota de mantenimiento.
 
 ## Objetivo principal
 
 1. **Móvil primero.** Es una PWA instalable (icono en la pantalla de inicio, pantalla completa, sin barra del navegador). Se diseña primero para 390 px de ancho; el escritorio es secundario.
-2. **Airtable es la base de datos y la fuente de la estructura.** Si el dueño crea una tabla o un campo en Airtable, debe aparecer en la app sin tocar código. La app lee el esquema con la Metadata API de Airtable y genera las galerías de forma genérica. Las galerías principales tienen además una configuración de diseño a medida (ver "Galerías").
+2. **Supabase es la base de datos** (proyecto `elegance-photographie`, organización Elegance Photographie, plan Pro). Los datos vinieron de Airtable (base `appV0PordtxxqzY5C`), que ya no se usa. La app lee el esquema (tablas, campos, tipos y opciones, en el formato de la Metadata API de Airtable) de la tabla `app_esquema` y genera las galerías de forma genérica; `lib/mapa.ts` dice dónde vive cada campo. Las galerías principales tienen además una configuración de diseño a medida (ver "Galerías").
 3. **Mantenimiento sencillo.** Código claro, pocas dependencias y configuración en un solo lugar.
 
 ## Stack
 
-- Next.js (App Router) + TypeScript, desplegado en Vercel.
+- Next.js (App Router) + TypeScript, desplegado en Netlify (sitio `ep-app`, rama `main`).
 - PWA: manifest, service worker, iconos, `viewport-fit=cover` y safe areas para iPhone.
-- Airtable como único backend. **Nunca** llamar a Airtable desde el navegador: todas las llamadas pasan por rutas de servidor (Route Handlers / Server Actions), con el token en variables de entorno.
+- Supabase como único backend: Postgres por SQL directo (`pg`, `lib/datos.ts`) y Storage para los archivos (bucket privado `adjuntos`, enlaces firmados de 24 h). **Nunca** llamar a la base desde el navegador: todo pasa por rutas de servidor (Route Handlers / Server Actions), con las claves en variables de entorno. Las tablas tienen RLS activado y sin políticas: solo el servidor (service_role / conexión directa) accede.
+- `lib/datos.ts` devuelve los registros con la forma que tenía Airtable (`{ id, createdTime, fields }` con los campos por nombre, vacíos omitidos) y conserva los IDs `rec…`: el resto de la app no sabe de dónde vienen los datos.
 - Autenticación: email + contraseña con **código de invitación personal** (Equipo → `Código de invitación`, `Estado invitación` Pendiente/Usada/Cancelada, `Clave (cifrada)` con scrypt). El administrador genera, reenvía o cancela el código desde la ficha de cada persona; cancelar cierra su sesión. Solo pueden entrar los emails de **Equipo** con `Activo` marcado; el email no puede repetirse y la sesión guarda el ID de la fila. El rol sale de `Equipo.Rol`.
 - Estilos: CSS propio o Tailwind, respetando los tokens de diseño de abajo.
 
 ### Variables de entorno
 
 ```
-AIRTABLE_TOKEN=            # Personal Access Token con scopes: data.records:read, data.records:write, schema.bases:read
-AIRTABLE_BASE_ID=appV0PordtxxqzY5C
+DATABASE_URL=               # Supabase → Connect → "Transaction pooler" (puerto 6543), con la contraseña de la base
+SUPABASE_URL=https://icbewzujzrwbngmlwmto.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=  # clave service_role (solo servidor)
 AUTH_SECRET=
 TELEGRAM_BOT_TOKEN=          # token de @Eleganceapp_bot
 TELEGRAM_ADMIN_CHAT_ID=      # grupo "Eventos Elegance": -5184336877
 TELEGRAM_VIDEOS_CHAT_ID=     # grupo "VIDEOS ELEGANCE": -1003944478257
 ```
 
-### Límites de Airtable a tener en cuenta
+### Cambios de estructura
 
-- Unas 5 peticiones por segundo por base: cachear lecturas (revalidación corta) y agrupar escrituras.
-- Revisar el plan de Airtable del cliente: los planes gratuitos tienen un límite mensual de llamadas a la API que una app de uso diario puede superar.
+- Campo u opción nueva: migración en `supabase/migrations/` (columna o tabla puente), entrada en `app_esquema` (mismo formato que la Metadata API de Airtable) y línea en `lib/mapa.ts`.
+- Los campos calculados (fechas automáticas, autor, saldos de Contabilidad) se calculan en `lib/datos.ts` o en vistas SQL (`contabilidad_saldos`).
+- La función `supabase/functions/migrar-airtable` y la tabla `migracion_clave` solo sirvieron para importar desde Airtable.
 
-## Base de Airtable (Elegance Photographie CRM)
+## Tablas (esquema heredado de Airtable "Elegance Photographie CRM")
 
-Consultar siempre el esquema real con la Metadata API; esta tabla es una referencia y puede quedar desactualizada. Los nombres de campo de esta base son distintos a los de Dreamcatcher: todos se configuran en `config/galerias.ts`.
+Consultar siempre `app_esquema`; esta tabla es una referencia y puede quedar desactualizada. Los IDs (`tbl…`, `fld…`, `rec…`) son los de Airtable y se conservan. Los nombres de campo son distintos a los de Dreamcatcher: todos se configuran en `config/galerias.ts`.
 
-| Tabla | ID | Campo principal | Notas |
+| Tabla | ID (tabla Supabase) | Campo principal | Notas |
 | --- | --- | --- | --- |
-| Clientes | tbl6nQUYzRSY8PWZ4 | nombre del cliente | fecha del evento, Venue, costo, ESTADO DEL CLIENTE (selección múltiple), servicios → SERVICIOS, Team Members → Equipo |
-| Tareas | tbl4okeRHTWLcbwC7 | tarea | Fecha Limite, Estado de Tarea, Responsables → Equipo, Cliente Asociado → Clientes |
-| VIDEOS (hace de Entrega) | tblltg6JFKtSwnXnm | NOMBRE DEL CLIENTE | Status (selección simple), FECHA DE ENTREGA ORIGINAL, Cliente, Responsable Entrega |
-| Leads | tbl7sBK5QD0ZHIDMA | nombre del lead | fecha de evento, estado, 1er–4to Contacto → Equipo |
-| Contabilidad | tbl0hZCWeLtmriphU | Concepto | Cliente, DEPOSITO, Fecha Depósito, Fecha Balance; Monto Total = rollup del costo; Monto Pendiente = fórmula |
-| Gastos | tblVtMgHzjUYHX5nv | GASTOS | Cantidad, Categoría, Comprobante, Persona que hizo el pago, Aprobación |
-| Equipo | tbljsGsSe2Ep1Fnjy | Nombre | Rol, Email, Activo, campos de invitación (ocultos) |
-| SERVICIOS | tblst8FBjp9HUIU5v | Nombre del Servicio | Catálogo de servicios enlazado desde Clientes |
-| Calendario | tblSpztRvvebMefcg | nombre del evento | Oculta en la app (`TABLAS_OCULTAS`): la app tiene su propio calendario |
+| Clientes | tbl6nQUYzRSY8PWZ4 (`clientes`) | nombre del cliente | fecha del evento, Venue, costo, ESTADO DEL CLIENTE (selección múltiple), servicios → SERVICIOS, Team Members → Equipo |
+| Tareas | tbl4okeRHTWLcbwC7 (`tareas`) | tarea | Fecha Limite, Estado de Tarea, Responsables → Equipo, Cliente Asociado → Clientes |
+| VIDEOS (hace de Entrega) | tblltg6JFKtSwnXnm (`entregas`) | NOMBRE DEL CLIENTE | Status (selección simple), FECHA DE ENTREGA ORIGINAL, Cliente, Responsable Entrega |
+| Leads | tbl7sBK5QD0ZHIDMA (`leads`) | nombre del lead | fecha de evento, estado, 1er–4to Contacto → Equipo |
+| Contabilidad | tbl0hZCWeLtmriphU (`contabilidad`) | Concepto | Cliente, DEPOSITO, Fecha Depósito, Fecha Balance; Monto Total = rollup del costo; Monto Pendiente = fórmula |
+| Gastos | tblVtMgHzjUYHX5nv (`gastos`) | GASTOS | Cantidad, Categoría, Comprobante, Persona que hizo el pago, Aprobación |
+| Equipo | tbljsGsSe2Ep1Fnjy (`equipo`) | Nombre | Rol, Email, Activo, campos de invitación (ocultos) |
+| SERVICIOS | tblst8FBjp9HUIU5v (`servicios`) | Nombre del Servicio | Catálogo de servicios enlazado desde Clientes |
+| Calendario | tblSpztRvvebMefcg (`calendario`) | nombre del evento | Oculta en la app (`TABLAS_OCULTAS`): la app tiene su propio calendario |
 
 Reglas:
 - Los campos calculados (fórmula, rollup, lookup, count) son de solo lectura en la app.

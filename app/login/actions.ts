@@ -2,7 +2,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { updateTag } from "next/cache";
-import { actualizarRegistro, tagTabla } from "@/lib/airtable";
+import { actualizarRegistro, tagTabla } from "@/lib/datos";
 import { filasPorEmail, tieneAcceso } from "@/lib/auth";
 import { CLAVE_MINIMA, cifrarClave, comprobarClave, mismoCodigo } from "@/lib/clave";
 import { COOKIE_SESION, DURACION_SESION_S, firmarToken } from "@/lib/token";
@@ -31,8 +31,8 @@ async function leerFilas(email: string) {
   try {
     return { filas: await filasPorEmail(email, true) };
   } catch (e) {
-    console.error("[acceso] no se pudo leer la tabla Equipo de Airtable:", e);
-    return { error: "No se pudo conectar con Airtable. Revisa AIRTABLE_TOKEN y AIRTABLE_BASE_ID." };
+    console.error("[acceso] no se pudo leer la tabla Equipo:", e);
+    return { error: "No se pudo conectar con la base de datos. Revisa DATABASE_URL." };
   }
 }
 

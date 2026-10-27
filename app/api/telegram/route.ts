@@ -1,6 +1,6 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
-import { actualizarRegistro, getRegistrosSinCache, tagTabla } from "@/lib/airtable";
+import { actualizarRegistro, getRegistrosSinCache, tagTabla } from "@/lib/datos";
 import {
   confirmarPresencia,
   procesarClientes,

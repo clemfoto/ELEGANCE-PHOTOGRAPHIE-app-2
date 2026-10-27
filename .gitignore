@@ -5,3 +5,6 @@ node_modules
 next-env.d.ts
 *.tsbuildinfo
 .vercel
+
+# Respaldo local de la migración (datos personales y claves cifradas)
+respaldo/

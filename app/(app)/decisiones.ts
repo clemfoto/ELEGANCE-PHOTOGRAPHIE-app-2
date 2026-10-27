@@ -3,7 +3,7 @@ import { forbidden, notFound } from "next/navigation";
 import { updateTag } from "next/cache";
 import { headers } from "next/headers";
 import { reenviarAvisoCliente } from "@/lib/automatizaciones";
-import { actualizarRegistro, getRegistro, tagTabla } from "@/lib/airtable";
+import { actualizarRegistro, getRegistro, tagTabla } from "@/lib/datos";
 import { requireAdmin } from "@/lib/auth";
 import { opciones, valorSeleccion } from "@/lib/esquema";
 import { texto } from "@/lib/formato";

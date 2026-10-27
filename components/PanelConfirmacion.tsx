@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getRegistros, type AirRecord } from "@/lib/airtable";
+import { getRegistros, type AirRecord } from "@/lib/datos";
 import { Avatar } from "@/components/Valor";
 import BotonAccion from "@/components/BotonAccion";
 import { AUTOMATIZACIONES, EQUIPO, GALERIAS, TABLAS } from "@/config/galerias";

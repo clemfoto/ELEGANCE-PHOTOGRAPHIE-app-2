@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
-import { getRegistros, getRegistrosSinCache, type AirRecord } from "@/lib/airtable";
+import { getRegistros, getRegistrosSinCache, type AirRecord } from "@/lib/datos";
 import { EQUIPO, type Rol } from "@/config/galerias";
 import { COOKIE_SESION, verificarToken } from "@/lib/token";
 
@@ -21,7 +21,7 @@ export function aUsuario(r: AirRecord): Usuario {
 /**
  * Filas de Equipo con ese email (tengan o no acceso). Normalmente una; si por error dos personas
  * comparten email, el login y el registro eligen la fila por su contraseña o su código.
- * `fresco` lee Airtable sin caché.
+ * `fresco` lee la base de datos sin caché.
  */
 export async function filasPorEmail(email: string, fresco = false): Promise<AirRecord[]> {
   const buscado = email.trim().toLowerCase();

@@ -1,6 +1,6 @@
 import "server-only";
 import { forbidden, notFound } from "next/navigation";
-import { getEsquema, type Field, type Table } from "@/lib/airtable";
+import { getEsquema, type Field, type Table } from "@/lib/datos";
 import { requireUsuario, type Usuario } from "@/lib/auth";
 import { EQUIPO, GALERIAS, TABLAS, type Galeria } from "@/config/galerias";
 import { camposVisibles, nombresDe, nombresEnlazados, puedeVerTabla, resumenClientes, rutaTabla, tablaPorSlug, type ResumenCliente } from "@/lib/esquema";

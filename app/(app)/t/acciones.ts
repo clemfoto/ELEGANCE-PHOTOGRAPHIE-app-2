@@ -12,7 +12,7 @@ import {
   tagTabla,
   type Field,
   type Table,
-} from "@/lib/airtable";
+} from "@/lib/datos";
 import { requireUsuario, type Usuario } from "@/lib/auth";
 import { campo, campoVisible, esAdmin, esSoloLectura, puedeVerTabla, rutaTabla, tablaPorId, valorSeleccion } from "@/lib/esquema";
 import { localAIso } from "@/lib/formato";
@@ -68,7 +68,7 @@ function refrescar(t: Table) {
 const TEXTO = new Set(["singleLineText", "email", "url", "phoneNumber", "multilineText", "richText"]);
 const NUMERO = new Set(["number", "currency", "percent", "rating", "duration"]);
 
-/** Convierte lo que envía el formulario al formato que espera Airtable, según el tipo del campo. */
+/** Convierte lo que envía el formulario al formato de cada campo, según su tipo. */
 function leerCampo(f: Field, form: FormData): unknown {
   const clave = `f:${f.id}`;
   const v = String(form.get(clave) ?? "").trim();

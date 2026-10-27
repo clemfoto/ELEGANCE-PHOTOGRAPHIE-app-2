@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getRegistros } from "@/lib/airtable";
+import { getRegistros } from "@/lib/datos";
 import { contextoTabla } from "@/lib/contexto";
 import { rutaTabla, titulo } from "@/lib/esquema";
 import { buscar, filtrarOpcion, ordenar } from "@/lib/lista";

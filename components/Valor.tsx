@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Field } from "@/lib/airtable";
+import type { Field } from "@/lib/datos";
 import type { Enlaces } from "@/lib/contexto";
 import { EQUIPO } from "@/config/galerias";
 import { colorOpcion, fecha, iniciales, moneda, numero, texto, tipoEfectivo } from "@/lib/formato";

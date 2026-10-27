@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getRegistros } from "@/lib/airtable";
+import { getRegistros } from "@/lib/datos";
 import { getUsuario } from "@/lib/auth";
 import { campoPrincipal, puedeVerTabla, tablaPorId, textoPrincipal } from "@/lib/esquema";
 import { EQUIPO } from "@/config/galerias";

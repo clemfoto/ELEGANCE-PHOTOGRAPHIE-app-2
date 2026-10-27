@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { getRegistros, type AirRecord } from "@/lib/airtable";
+import { getRegistros, type AirRecord } from "@/lib/datos";
 import { EQUIPO, MARCA } from "@/config/galerias";
 import { Chip } from "@/components/Valor";
 import BotonesAcceso from "@/components/BotonesAcceso";

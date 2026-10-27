@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
-import { crearRegistro, subirAdjunto, tagTabla } from "@/lib/airtable";
+import { crearRegistro, subirAdjunto, tagTabla } from "@/lib/datos";
 import { getUsuario } from "@/lib/auth";
 import { campo, campoVisible, puedeVerTabla, rutaTabla, tablaPorId } from "@/lib/esquema";
 import { hoyISO } from "@/lib/formato";
 import { GALERIAS, TABLAS } from "@/config/galerias";
 
-const MAX_BYTES = 5 * 1024 * 1024; // límite de la API de subida de Airtable
+const MAX_BYTES = 5 * 1024 * 1024; // fotos de tickets y documentos; límite de la app
 
 /**
  * Sube un archivo a un campo de adjuntos.
