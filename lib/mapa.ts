@@ -65,6 +65,7 @@ export const MAPA: Record<string, MapaTabla> = {
       fldgpOxA9X8JgA6RX: c("notas_internas"),
       fldb4a6ctlCRgHjWP: c("clientes_texto"),
       fldEPservPrecio01: c("precio", "numero"),
+      fldEPservOpcion01: c("opciones"),
     },
     enlaces: {
       fldGfTCoU054QIzMZ: { puente: "cliente_servicios", propia: "servicio_id", otra: "cliente_id" },

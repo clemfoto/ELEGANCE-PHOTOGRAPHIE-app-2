@@ -22,11 +22,15 @@ export type DatosContrato = {
   cliente: { nombre: string; email: string; tel?: string };
   fecha_evento: string;
   venue?: string;
-  servicios: { nombre: string; precio: number | null }[];
+  servicios: { nombre: string; precio: number | null; descripcion?: string }[];
+  /** Resumen del servicio: va en el contrato debajo de los servicios. */
+  resumen?: { opciones: string[]; texto?: string };
   total: number;
   deposito: number;
   iva: boolean;
   dron: boolean;
+  /** false: tras la firma del cliente, Elegance revisa y firma desde la app ("Firmar y enviar"). */
+  autofirma?: boolean;
   avisoUrl?: string;
 };
 
@@ -77,6 +81,11 @@ export async function enviarContrato(n: string, nombre: string): Promise<void> {
         `using the link below. The invoice for your reservation deposit is attached.\n\nWe can't wait to be part of your day.`,
     }),
   });
+}
+
+/** Pone la firma de Elegance y manda la versión final firmada al cliente y a Elegance. */
+export async function firmarContrato(n: string): Promise<void> {
+  await api(`${no(n)}/countersign`, { method: "POST" });
 }
 
 export async function descartarContrato(n: string): Promise<void> {
