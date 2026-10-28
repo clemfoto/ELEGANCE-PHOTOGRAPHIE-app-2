@@ -97,6 +97,11 @@ export async function enviarContrato(n: string, d: { subject: string; message: s
   await api(`${no(n)}/send`, { method: "POST", body: JSON.stringify(d) });
 }
 
+/** Invoice del balance de un contrato ya creado (con la fecha de hoy y los montos actuales); sustituye a uno sin enviar. */
+export async function crearInvoiceBalance(n: string, d: Omit<DatosContrato, "dron" | "autofirma" | "avisoUrl" | "servicios" | "resumen">): Promise<void> {
+  await api(`${no(n)}/invoices`, { method: "POST", body: JSON.stringify({ tipo: "balance", ...d }) });
+}
+
 /** Pone la firma de Elegance y manda la versión final firmada al cliente y a Elegance. */
 export async function firmarContrato(n: string): Promise<void> {
   await api(`${no(n)}/countersign`, { method: "POST" });

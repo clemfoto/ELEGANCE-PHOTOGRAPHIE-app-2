@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { descartarContrato, firmarContrato, prepararContrato, type Resultado } from "@/app/(app)/t/pagos";
+import { descartarContrato, firmarContrato, prepararContrato, prepararInvoiceBalance, type Resultado } from "@/app/(app)/t/pagos";
 
 /**
  * Botones del contrato de TuGiroSuite: preparar (con o sin dron), descartar el borrador y firmar
@@ -23,7 +23,31 @@ export default function AccionesContrato({ id, modo }: { id: string; modo: "prep
     });
   };
 
-  if (modo === "enviado") return null;
+  // Invoice del balance: se prepara cuando toca cobrarlo y se manda solo, desde «Documentos a enviar»
+  const invoiceBalance = modo !== "preparar" && (
+    <button
+      type="button"
+      className="btn btn-secundario btn-bloque"
+      disabled={pendiente}
+      onClick={() =>
+        correr(
+          () => prepararInvoiceBalance(id),
+          "¿Preparar el invoice del balance con los montos de «Costo y pagos»? Si ya había uno sin enviar, se sustituye.",
+        )
+      }
+    >
+      {pendiente ? "…" : "Preparar invoice del balance"}
+    </button>
+  );
+
+  if (modo === "enviado") {
+    return (
+      <>
+        {invoiceBalance}
+        {error && <p className="error">{error}</p>}
+      </>
+    );
+  }
   if (modo === "firmar" || modo === "reenviar") {
     return (
       <>
@@ -42,6 +66,7 @@ export default function AccionesContrato({ id, modo }: { id: string; modo: "prep
         >
           {pendiente ? "Enviando…" : modo === "firmar" ? "Firmar y enviar" : "Reenviar documentos firmados"}
         </button>
+        {invoiceBalance}
         {error && <p className="error">{error}</p>}
       </>
     );
@@ -59,14 +84,17 @@ export default function AccionesContrato({ id, modo }: { id: string; modo: "prep
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          className="btn btn-secundario btn-bloque"
-          disabled={pendiente}
-          onClick={() => correr(() => descartarContrato(id), "¿Descartar este contrato? Podrás preparar otro.")}
-        >
-          {pendiente ? "…" : "Descartar borrador"}
-        </button>
+        <>
+          <button
+            type="button"
+            className="btn btn-secundario btn-bloque"
+            disabled={pendiente}
+            onClick={() => correr(() => descartarContrato(id), "¿Descartar este contrato? Podrás preparar otro.")}
+          >
+            {pendiente ? "…" : "Descartar borrador"}
+          </button>
+          {invoiceBalance}
+        </>
       )}
       {error && <p className="error">{error}</p>}
     </>

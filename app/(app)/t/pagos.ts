@@ -39,6 +39,16 @@ const pagoTGS = (p: Pago, fraccion: number | null): tgs.PagoTGS => ({
   total: p.total,
 });
 
+/** Cliente y montos tal como los lee TuGiroSuite (contrato e invoices). */
+const montos = (p: NonNullable<Awaited<ReturnType<typeof leerPagos>>>) => ({
+  cliente: { nombre: p.nombre.trim(), email: p.email!, ...(p.telefono ? { tel: p.telefono } : {}) },
+  total: p.total,
+  subtotal: p.subtotal,
+  deposito: p.deposito ?? 0,
+  iva: p.depositoIva || p.balanceIva,
+  pagos: { deposito: pagoTGS(p.pagoDeposito, p.depositoExtra), balance: pagoTGS(p.pagoBalance, p.balanceExtra) },
+});
+
 export async function guardarPagos(id: string, cambios: CambiosPagos): Promise<Resultado> {
   await requireAdmin();
   return intentar("guardar", () => guardar(id, cambios));
@@ -65,16 +75,11 @@ export async function prepararContrato(id: string, dron: boolean): Promise<Resul
     const h = await headers();
     const base = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
     const no = await tgs.crearContrato({
-      cliente: { nombre: p.nombre.trim(), email: p.email!, ...(p.telefono ? { tel: p.telefono } : {}) },
+      ...montos(p),
       fecha_evento: p.fecha!,
       ...(p.venue ? { venue: p.venue } : {}),
       servicios: p.servicios.map((s) => ({ nombre: s.nombre, precio: s.precio, ...(s.descripcion?.trim() ? { descripcion: s.descripcion.trim() } : {}) })),
       resumen: { opciones: p.resumenOpciones, ...(p.resumenTexto.trim() ? { texto: p.resumenTexto.trim() } : {}) },
-      total: p.total,
-      subtotal: p.subtotal,
-      deposito: p.deposito!,
-      iva: p.depositoIva || p.balanceIva,
-      pagos: { deposito: pagoTGS(p.pagoDeposito, p.depositoExtra), balance: pagoTGS(p.pagoBalance, p.balanceExtra) },
       dron,
       autofirma: false,
       avisoUrl: `${base}/t/clientes/${id}`,
@@ -113,6 +118,19 @@ export async function enviarContrato(id: string, documentos: string[]): Promise<
     });
     await marcarEnviado(id);
     if (elegidos.some((d) => d.solo_lectura)) await marcarDepositoPagado(id, hoyISO());
+  });
+}
+
+/** Prepara el invoice del balance (con los montos de «Costo y pagos») para revisarlo y mandarlo solo. */
+export async function prepararInvoiceBalance(id: string): Promise<Resultado> {
+  await requireAdmin();
+  return intentar("invoice-balance", async () => {
+    const p = await leerPagos(id);
+    if (!p?.contrato) throw new Error("Primero prepara el contrato.");
+    if (!p.email) throw new Error("Falta el email del cliente.");
+    if (!p.fecha) throw new Error("Falta la fecha del evento.");
+    if (!(p.balance > 0)) throw new Error("No hay balance por cobrar.");
+    await tgs.crearInvoiceBalance(p.contrato, { ...montos(p), fecha_evento: p.fecha });
   });
 }
 
