@@ -1,16 +1,20 @@
 import { leerPagos } from "@/lib/pagos";
+import { leerEnvios, leerMachote, rellenar } from "@/lib/envios";
 import { ESTADOS_CONTRATO, leerContrato, tugirosuiteListo, type ContratoTGS } from "@/lib/tugirosuite";
 import { fecha } from "@/lib/formato";
 import FormPagos from "@/components/FormPagos";
 import AccionesContrato from "@/components/AccionesContrato";
 import DocumentosContrato from "@/components/DocumentosContrato";
+import EnviarDocumentos from "@/components/EnviarDocumentos";
+import HistorialEnvios from "@/components/HistorialEnvios";
 
 /**
- * Ficha de cliente (solo administrador): precio de cada servicio, IVA, depósito y balance,
- * y el contrato e invoice de TuGiroSuite (preparar, revisar, enviar).
+ * Ficha de cliente (solo administrador): precio de cada paquete, depósito y balance con sus
+ * impuestos, el contrato e invoice de TuGiroSuite (preparar, revisar, elegir qué enviar) y el
+ * historial de documentos enviados.
  */
 export default async function PanelPagos({ id }: { id: string }) {
-  const p = await leerPagos(id);
+  const [p, envios, machote] = await Promise.all([leerPagos(id), leerEnvios(id), leerMachote()]);
   if (!p) return null;
 
   let contrato: ContratoTGS | null = null;
@@ -41,8 +45,8 @@ export default async function PanelPagos({ id }: { id: string }) {
         ) : !p.contrato ? (
           <>
             <p className="nota-chica">
-              TuGiroSuite rellena el contrato y el invoice del depósito con los servicios y pagos de arriba. Los revisas aquí
-              antes de mandarlos al cliente. El invoice solo se manda cuando ya se recibió el depósito.
+              TuGiroSuite rellena el contrato y el invoice del depósito con los paquetes y pagos de arriba. Los revisas aquí
+              y eliges qué mandar al cliente. El invoice solo se manda cuando ya se recibió el depósito.
             </p>
             <AccionesContrato id={id} modo="preparar" />
           </>
@@ -64,8 +68,8 @@ export default async function PanelPagos({ id }: { id: string }) {
             )}
             {estado === "borrador" && (
               <p className="nota-chica">
-                Al enviarlo, el cliente recibe por email el enlace para firmar el contrato y el invoice adjunto, y el depósito
-                queda marcado como pagado{p.depositoPagadoEn ? "" : " con fecha de hoy"}.
+                El cliente recibe por email los documentos que marques abajo, con el mensaje para clientes. Si va el invoice, el
+                depósito queda marcado como pagado{p.depositoPagadoEn ? "" : " con fecha de hoy"}.
               </p>
             )}
             {estado === "falta_tu_firma" && (
@@ -86,8 +90,23 @@ export default async function PanelPagos({ id }: { id: string }) {
                 : "enviado"
               }
             />
+            {contrato && contrato.documentos.length > 0 && (
+              <EnviarDocumentos
+                id={id}
+                docs={contrato.documentos.map((d) => ({ id: d.id, titulo: d.titulo, invoice: d.solo_lectura }))}
+                inicial={estado === "borrador" ? contrato.documentos.map((d) => d.id) : []}
+                asunto={rellenar(machote.asunto, p, ["{documentos}"])}
+                mensaje={rellenar(machote.mensaje, p, ["{documentos}"])}
+                email={p.email}
+              />
+            )}
           </>
         )}
+      </section>
+
+      <section className="tarjeta bloque">
+        <h2 className="seccion-titulo">Documentos enviados</h2>
+        <HistorialEnvios envios={envios} />
       </section>
     </>
   );

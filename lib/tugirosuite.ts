@@ -16,6 +16,14 @@ export type DocumentoTGS = {
   solo_lectura: boolean;
   firmado_cliente: string | null;
 };
+export type PagoTGS = {
+  base: number;
+  iva: number;
+  /** Porcentaje adicional (3 = 3 %), 0 si no se usa, y su monto. */
+  extra_pct: number;
+  extra: number;
+  total: number;
+};
 export type ContratoTGS = { contratoNo: string; estado: string; documentos: DocumentoTGS[] };
 
 export type DatosContrato = {
@@ -25,9 +33,19 @@ export type DatosContrato = {
   servicios: { nombre: string; precio: number | null; descripcion?: string }[];
   /** Resumen del servicio: va en el contrato debajo de los servicios. */
   resumen?: { opciones: string[]; texto?: string };
+  /** Total a cobrar: paquetes + IVA y % adicional de cada pago. */
   total: number;
+  /** Costo de los paquetes, sin impuestos. */
+  subtotal: number;
+  /** Depósito sin impuestos. */
   deposito: number;
+  /** true si el depósito o el balance llevan IVA (detalle en `pagos`). */
   iva: boolean;
+  /**
+   * Detalle de cada pago: el IVA (16 %) y el porcentaje adicional se eligen por separado para el
+   * depósito y el balance y se calculan sobre cada uno. El invoice del depósito cobra `deposito.total`.
+   */
+  pagos: { deposito: PagoTGS; balance: PagoTGS };
   dron: boolean;
   /** false: tras la firma del cliente, Elegance revisa y firma desde la app ("Firmar y enviar"). */
   autofirma?: boolean;
@@ -71,16 +89,12 @@ export async function leerContrato(n: string): Promise<ContratoTGS> {
   return (await api(no(n))).json();
 }
 
-export async function enviarContrato(n: string, nombre: string): Promise<void> {
-  await api(`${no(n)}/send`, {
-    method: "POST",
-    body: JSON.stringify({
-      subject: "Your Elegance Photographie services agreement",
-      message:
-        `Hi ${nombre},\n\nThank you for choosing Elegance Photographie! Please review and sign your services agreement ` +
-        `using the link below. The invoice for your reservation deposit is attached.\n\nWe can't wait to be part of your day.`,
-    }),
-  });
+/**
+ * Manda al cliente los documentos elegidos (`documentos`: IDs de ContratoTGS.documentos) con el
+ * asunto y el mensaje del machote: p. ej. solo el invoice, o el contrato para firmar y el invoice.
+ */
+export async function enviarContrato(n: string, d: { subject: string; message: string; documentos: string[] }): Promise<void> {
+  await api(`${no(n)}/send`, { method: "POST", body: JSON.stringify(d) });
 }
 
 /** Pone la firma de Elegance y manda la versión final firmada al cliente y a Elegance. */

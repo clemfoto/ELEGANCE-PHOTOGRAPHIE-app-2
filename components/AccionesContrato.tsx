@@ -1,9 +1,12 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { descartarContrato, enviarContrato, firmarContrato, prepararContrato, type Resultado } from "@/app/(app)/t/pagos";
+import { descartarContrato, firmarContrato, prepararContrato, type Resultado } from "@/app/(app)/t/pagos";
 
-/** Botones del contrato de TuGiroSuite: preparar (con o sin dron), enviar o descartar, y firmar cuando el cliente ya firmó. */
+/**
+ * Botones del contrato de TuGiroSuite: preparar (con o sin dron), descartar el borrador y firmar
+ * cuando el cliente ya firmó. Qué documentos se mandan se elige en EnviarDocumentos.
+ */
 export default function AccionesContrato({ id, modo }: { id: string; modo: "preparar" | "revisar" | "firmar" | "reenviar" | "enviado" }) {
   const router = useRouter();
   const [pendiente, empezar] = useTransition();
@@ -56,24 +59,14 @@ export default function AccionesContrato({ id, modo }: { id: string; modo: "prep
           </button>
         </div>
       ) : (
-        <div className="acciones-acceso">
-          <button
-            type="button"
-            className="btn btn-primario"
-            disabled={pendiente}
-            onClick={() => correr(() => enviarContrato(id), "¿Mandar el contrato y el invoice al cliente? Revisa antes los dos PDF.")}
-          >
-            {pendiente ? "…" : "Enviar al cliente"}
-          </button>
-          <button
-            type="button"
-            className="btn btn-secundario"
-            disabled={pendiente}
-            onClick={() => correr(() => descartarContrato(id), "¿Descartar este contrato? Podrás preparar otro.")}
-          >
-            Descartar
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-secundario btn-bloque"
+          disabled={pendiente}
+          onClick={() => correr(() => descartarContrato(id), "¿Descartar este contrato? Podrás preparar otro.")}
+        >
+          {pendiente ? "…" : "Descartar borrador"}
+        </button>
       )}
       {error && <p className="error">{error}</p>}
     </>

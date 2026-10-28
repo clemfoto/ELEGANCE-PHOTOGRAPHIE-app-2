@@ -1,9 +1,11 @@
 import "server-only";
 import { sql } from "@/lib/datos";
+import type { Pago } from "@/lib/impuestos";
 
 /**
- * Pagos de un cliente: precio de cada servicio para ese cliente (puede llevar descuento),
- * IVA, depósito y balance. Los totales salen de la vista clientes_totales.
+ * Pagos de un cliente: precio de cada paquete para ese cliente (puede llevar descuento),
+ * depósito y balance, cada uno con su IVA y % adicional si se usan. Los totales salen de la
+ * vista clientes_totales (mismo cálculo que lib/impuestos.ts).
  */
 
 export type ServicioPrecio = {
@@ -23,22 +25,30 @@ export type Pagos = {
   email: string | null;
   telefono: string | null;
   servicios: ServicioPrecio[];
-  /** Costo que venía de Airtable: es el subtotal mientras ningún servicio tenga precio. */
+  /** Costo que venía de Airtable: es el subtotal mientras ningún paquete tenga precio. */
   costoAnterior: number | null;
-  aplicaIva: boolean;
   deposito: number | null;
+  depositoIva: boolean;
+  /** Fracción: 0.03 = 3 %. */
+  depositoExtra: number | null;
+  balanceIva: boolean;
+  balanceExtra: number | null;
   depositoPagadoEn: string | null;
+  /** Costo de los paquetes, sin impuestos. */
   subtotal: number;
+  pagoDeposito: Pago;
+  pagoBalance: Pago;
   iva: number;
+  extra: number;
+  /** Total a cobrar (paquetes + impuestos de cada pago). */
   total: number;
+  /** Balance a cobrar, con sus impuestos. */
   balance: number;
   contrato: string | null;
   /** Resumen del servicio: detalles elegidos de las opciones de sus servicios y texto libre. */
   resumenOpciones: string[];
   resumenTexto: string;
 };
-
-export const IVA = 0.16;
 
 export async function leerPagos(id: string): Promise<Pagos | null> {
   const [c] = await sql<{
@@ -49,19 +59,34 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     email: string | null;
     telefono: string | null;
     costo: number | null;
-    aplica_iva: boolean;
     deposito: number | null;
+    deposito_iva: boolean;
+    deposito_extra: number | null;
+    balance_iva: boolean;
+    balance_extra: number | null;
     deposito_pagado_en: string | null;
     tugirosuite_contrato_id: string | null;
     solicitud_especial: string | null;
     resumen_opciones: string[];
     subtotal: number;
-    iva: number;
-    total: number;
+    t_deposito: number;
+    t_deposito_iva: number;
+    t_deposito_extra: number;
+    deposito_total: number;
+    balance_base: number;
+    t_balance_iva: number;
+    t_balance_extra: number;
     balance: number;
+    iva: number;
+    extra: number;
+    total: number;
   }>(
-    `select c.id, c.nombre, c.fecha_evento, c.venue, c.email, c.telefono, c.costo, c.aplica_iva, c.deposito,
-            c.deposito_pagado_en, c.tugirosuite_contrato_id, c.solicitud_especial, c.resumen_opciones, t.subtotal, t.iva, t.total, t.balance
+    `select c.id, c.nombre, c.fecha_evento, c.venue, c.email, c.telefono, c.costo, c.deposito,
+            c.deposito_iva, c.deposito_extra, c.balance_iva, c.balance_extra,
+            c.deposito_pagado_en, c.tugirosuite_contrato_id, c.solicitud_especial, c.resumen_opciones,
+            t.subtotal, t.deposito as t_deposito, t.deposito_iva as t_deposito_iva, t.deposito_extra as t_deposito_extra,
+            t.deposito_total, t.balance_base, t.balance_iva as t_balance_iva, t.balance_extra as t_balance_extra,
+            t.balance, t.iva, t.extra, t.total
        from public.clientes c join public.clientes_totales t on t.id = c.id
       where c.id = $1`,
     [id],
@@ -83,11 +108,17 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     telefono: c.telefono,
     servicios,
     costoAnterior: c.costo,
-    aplicaIva: c.aplica_iva,
     deposito: c.deposito,
+    depositoIva: c.deposito_iva,
+    depositoExtra: c.deposito_extra,
+    balanceIva: c.balance_iva,
+    balanceExtra: c.balance_extra,
     depositoPagadoEn: c.deposito_pagado_en,
     subtotal: c.subtotal,
+    pagoDeposito: { base: c.t_deposito, iva: c.t_deposito_iva, extra: c.t_deposito_extra, total: c.deposito_total },
+    pagoBalance: { base: c.balance_base, iva: c.t_balance_iva, extra: c.t_balance_extra, total: c.balance },
     iva: c.iva,
+    extra: c.extra,
     total: c.total,
     balance: c.balance,
     contrato: c.tugirosuite_contrato_id,
@@ -98,8 +129,12 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
 
 export type CambiosPagos = {
   precios: Record<string, number | null>;
-  aplicaIva: boolean;
   deposito: number | null;
+  depositoIva: boolean;
+  /** Porcentajes como fracción (0.03 = 3 %). */
+  depositoExtra: number | null;
+  balanceIva: boolean;
+  balanceExtra: number | null;
   email: string | null;
   telefono: string | null;
   resumenOpciones: string[];
@@ -116,6 +151,14 @@ const monto = (v: unknown) => {
   return n;
 };
 
+/** Porcentaje adicional como fracción; 0 o vacío = no se usa. */
+const fraccion = (v: unknown) => {
+  if (v == null || v === "") return null;
+  const n = Math.round(Number(v) * 10000) / 10000;
+  if (!isFinite(n) || n < 0 || n > 10) throw new Error("El porcentaje adicional no es válido.");
+  return n || null;
+};
+
 export async function guardarPagos(id: string, d: CambiosPagos): Promise<void> {
   const email = d.email?.trim() || null;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("El email del cliente no es válido.");
@@ -123,16 +166,19 @@ export async function guardarPagos(id: string, d: CambiosPagos): Promise<void> {
     await sql("update public.cliente_servicios set precio = $3 where cliente_id = $1 and servicio_id = $2", [id, servicio, monto(precio)]);
   }
   await sql(
-    `update public.clientes set aplica_iva = $2, deposito = $3, email = $4, telefono = $5,
-            resumen_opciones = $6, solicitud_especial = $7 where id = $1`,
+    `update public.clientes set deposito = $2, email = $3, telefono = $4, resumen_opciones = $5, solicitud_especial = $6,
+            deposito_iva = $7, deposito_extra = $8, balance_iva = $9, balance_extra = $10 where id = $1`,
     [
       id,
-      Boolean(d.aplicaIva),
       monto(d.deposito),
       email,
       d.telefono?.trim() || null,
       [...new Set((d.resumenOpciones ?? []).map((x) => String(x).trim()).filter(Boolean))].slice(0, 50),
       d.resumenTexto?.trim().slice(0, 4000) || null,
+      Boolean(d.depositoIva),
+      fraccion(d.depositoExtra),
+      Boolean(d.balanceIva),
+      fraccion(d.balanceExtra),
     ],
   );
 }
@@ -142,10 +188,11 @@ export async function guardarContrato(id: string, no: string | null, estado: str
   await sql("update public.clientes set tugirosuite_contrato_id = $2, tugirosuite_estado = $3 where id = $1", [id, no, estado]);
 }
 
-/** Al mandar el contrato con el invoice, el depósito queda pagado (con fecha de hoy si no tenía). */
+/** Al mandar el invoice, el depósito queda pagado (con fecha de hoy si no tenía). */
 export async function marcarDepositoPagado(id: string, hoy: string): Promise<void> {
-  await sql(
-    "update public.clientes set deposito_pagado_en = coalesce(deposito_pagado_en, $2::date), tugirosuite_estado = 'enviado' where id = $1",
-    [id, hoy],
-  );
+  await sql("update public.clientes set deposito_pagado_en = coalesce(deposito_pagado_en, $2::date) where id = $1", [id, hoy]);
+}
+
+export async function marcarEnviado(id: string): Promise<void> {
+  await sql("update public.clientes set tugirosuite_estado = 'enviado' where id = $1 and tugirosuite_estado = 'borrador'", [id]);
 }

@@ -4,21 +4,29 @@ import { useRouter } from "next/navigation";
 import { guardarPagos } from "@/app/(app)/t/pagos";
 import type { Pagos } from "@/lib/pagos";
 import { dinero, fecha } from "@/lib/formato";
+import { calcularPagos, porcentaje, redondear, type Pago } from "@/lib/impuestos";
 
-const IVA = 0.16;
 const aTexto = (n: number | null) => (n == null ? "" : String(n));
-const aNumero = (s: string) => (s.trim() === "" ? null : Number(s.replace(/[$,\s]/g, "")));
-const redondear = (n: number) => Math.round(n * 100) / 100;
+const aNumero = (s: string) => (s.trim() === "" ? null : Number(s.replace(/[$,%\s]/g, "")));
+/** "3.5" → 0.035; vacío o 0 → null (no se usa). */
+const aFraccion = (s: string) => {
+  const n = aNumero(s);
+  return n == null || isNaN(n) || n === 0 ? null : n / 100;
+};
 
 /**
- * Precio de cada servicio para este cliente (empieza con el de lista y se puede bajar, p. ej. con
- * un descuento), IVA, depósito y datos de contacto; los totales se recalculan al escribir.
+ * Precio de cada paquete para este cliente (empieza con el de lista y se puede bajar, p. ej. con
+ * un descuento), depósito y balance con su IVA y % adicional si se usan, y datos de contacto.
+ * Los paquetes van sin impuestos; los totales se recalculan al escribir.
  */
 export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boolean }) {
   const router = useRouter();
   const [precios, setPrecios] = useState(() => Object.fromEntries(p.servicios.map((s) => [s.id, aTexto(s.precio)])));
-  const [aplicaIva, setAplicaIva] = useState(p.aplicaIva);
   const [deposito, setDeposito] = useState(aTexto(p.deposito));
+  const [depositoIva, setDepositoIva] = useState(p.depositoIva);
+  const [depositoExtra, setDepositoExtra] = useState(porcentaje(p.depositoExtra));
+  const [balanceIva, setBalanceIva] = useState(p.balanceIva);
+  const [balanceExtra, setBalanceExtra] = useState(porcentaje(p.balanceExtra));
   const [email, setEmail] = useState(p.email ?? "");
   const [telefono, setTelefono] = useState(p.telefono ?? "");
   const [elegidas, setElegidas] = useState<string[]>(p.resumenOpciones);
@@ -28,9 +36,12 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
 
   const valores = Object.values(precios).map(aNumero).filter((n): n is number => n != null && !isNaN(n));
   const subtotal = redondear(valores.length ? valores.reduce((a, b) => a + b, 0) : (p.costoAnterior ?? 0));
-  const iva = aplicaIva ? redondear(subtotal * IVA) : 0;
-  const total = redondear(subtotal + iva);
-  const balance = redondear(total - (aNumero(deposito) ?? 0));
+  const t = calcularPagos(
+    subtotal,
+    aNumero(deposito) ?? 0,
+    { iva: depositoIva, extra: aFraccion(depositoExtra) },
+    { iva: balanceIva, extra: aFraccion(balanceExtra) },
+  );
 
   const guardar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,8 +49,11 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
     empezar(async () => {
       const r = await guardarPagos(p.id, {
         precios: Object.fromEntries(Object.entries(precios).map(([k, v]) => [k, aNumero(v)])),
-        aplicaIva,
         deposito: aNumero(deposito),
+        depositoIva,
+        depositoExtra: aFraccion(depositoExtra),
+        balanceIva,
+        balanceExtra: aFraccion(balanceExtra),
         email: email || null,
         telefono: telefono || null,
         resumenOpciones: elegidas,
@@ -85,15 +99,15 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
           </label>
         ))
       ) : (
-        <p className="nota-chica">Este cliente no tiene servicios. Añádelos con «Editar».</p>
+        <p className="nota-chica">Este cliente no tiene paquetes. Añádelos con «Editar».</p>
       )}
       {!valores.length && p.costoAnterior != null && (
-        <p className="nota-chica">Sin precios por servicio todavía: se usa el costo que venía de Airtable ({dinero(p.costoAnterior)}).</p>
+        <p className="nota-chica">Sin precios por paquete todavía: se usa el costo que venía de Airtable ({dinero(p.costoAnterior)}).</p>
       )}
 
       <fieldset className="campo">
         <legend className="campo-label">Resumen del servicio</legend>
-        <span className="campo-ayuda">Va en el contrato, debajo de los servicios.</span>
+        <span className="campo-ayuda">Va en el contrato, debajo de los paquetes.</span>
         {grupos.map((g) => (
           <div key={g.titulo} className="resumen-grupo">
             {grupos.length > 1 && <span className="resumen-titulo">{g.titulo}</span>}
@@ -106,7 +120,7 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
           </div>
         ))}
         {!grupos.length && (
-          <span className="campo-ayuda">Para elegir opciones, añádelas en Servicios → «Opciones del resumen».</span>
+          <span className="campo-ayuda">Para elegir opciones, añádelas en Paquetes → «Opciones del resumen».</span>
         )}
         <textarea
           className="input"
@@ -117,46 +131,40 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
         />
       </fieldset>
 
-      <label className="campo campo-check">
-        <span className="campo-label">Aplica IVA (16 %)</span>
-        <input type="checkbox" checked={aplicaIva} onChange={(e) => setAplicaIva(e.target.checked)} />
-      </label>
-
       <label className="campo">
-        <span className="campo-label">Depósito</span>
+        <span className="campo-label">Depósito (sin impuestos)</span>
         <span className="input-grupo">
           <span className="input-prefijo">$</span>
           <input className="input" inputMode="decimal" value={deposito} onChange={(e) => setDeposito(e.target.value)} />
         </span>
         <span className="campo-ayuda">
-          {p.depositoPagadoEn ? `Pagado el ${fecha(p.depositoPagadoEn)}` : "Se marca como pagado al enviar el contrato con el invoice."}
+          {p.depositoPagadoEn ? `Pagado el ${fecha(p.depositoPagadoEn)}` : "Se marca como pagado al enviar el invoice."}
         </span>
       </label>
+      <Cargos
+        titulo="depósito"
+        iva={depositoIva}
+        setIva={setDepositoIva}
+        extra={depositoExtra}
+        setExtra={setDepositoExtra}
+      />
+      <Cargos titulo="balance" iva={balanceIva} setIva={setBalanceIva} extra={balanceExtra} setExtra={setBalanceExtra} />
 
       <dl className="totales">
         <div>
-          <dt>Subtotal</dt>
+          <dt>Costo de paquetes (sin impuestos)</dt>
           <dd>{dinero(subtotal, 2)}</dd>
         </div>
-        {aplicaIva && (
-          <div>
-            <dt>IVA</dt>
-            <dd>{dinero(iva, 2)}</dd>
+        <Detalle titulo="Depósito" pago={t.deposito} extra={depositoExtra} />
+        <Detalle titulo="Balance" pago={t.balance} extra={balanceExtra} />
+        {(t.iva > 0 || t.extra > 0) && (
+          <div className="total">
+            <dt>Total a cobrar</dt>
+            <dd>{dinero(t.total, 2)} USD</dd>
           </div>
         )}
-        <div className="total">
-          <dt>Costo total</dt>
-          <dd>{dinero(total, 2)} USD</dd>
-        </div>
-        <div>
-          <dt>Depósito{p.depositoPagadoEn ? " ✓" : ""}</dt>
-          <dd>{dinero(aNumero(deposito) ?? 0, 2)}</dd>
-        </div>
-        <div className="total">
-          <dt>Balance</dt>
-          <dd>{dinero(balance, 2)} USD</dd>
-        </div>
       </dl>
+      {t.balance.base < 0 && <p className="error">El depósito es mayor que el costo de los paquetes.</p>}
 
       <label className="campo">
         <span className="campo-label">Email del cliente</span>
@@ -174,5 +182,68 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
       {mensaje.error && <p className="error">{mensaje.error}</p>}
       {mensaje.ok && <p className="nota-chica">{mensaje.ok}</p>}
     </form>
+  );
+}
+
+/** IVA y % adicional de un pago (depósito o balance). */
+function Cargos({
+  titulo,
+  iva,
+  setIva,
+  extra,
+  setExtra,
+}: {
+  titulo: string;
+  iva: boolean;
+  setIva: (v: boolean) => void;
+  extra: string;
+  setExtra: (v: string) => void;
+}) {
+  return (
+    <fieldset className="campo cargos">
+      <legend className="campo-label">Impuestos del {titulo}</legend>
+      <label className="resumen-opcion">
+        <input type="checkbox" checked={iva} onChange={(e) => setIva(e.target.checked)} />
+        <span>IVA 16 %</span>
+      </label>
+      <label className="cargos-extra">
+        <span>% adicional</span>
+        <span className="input-grupo">
+          <input className="input" inputMode="decimal" placeholder="0" value={extra} onChange={(e) => setExtra(e.target.value)} />
+          <span className="input-sufijo">%</span>
+        </span>
+      </label>
+    </fieldset>
+  );
+}
+
+/** Un pago con su detalle: base, IVA y % adicional (solo los que se usan) y lo que se cobra. */
+function Detalle({ titulo, pago, extra }: { titulo: string; pago: Pago; extra: string }) {
+  const conCargos = pago.iva > 0 || pago.extra > 0;
+  return (
+    <>
+      <div className={conCargos ? undefined : "total"}>
+        <dt>{titulo}{conCargos ? " (sin impuestos)" : ""}</dt>
+        <dd>{dinero(pago.base, 2)}{conCargos ? "" : " USD"}</dd>
+      </div>
+      {pago.iva > 0 && (
+        <div className="totales-sub">
+          <dt>+ IVA 16 %</dt>
+          <dd>{dinero(pago.iva, 2)}</dd>
+        </div>
+      )}
+      {pago.extra > 0 && (
+        <div className="totales-sub">
+          <dt>+ {extra.trim()} % adicional</dt>
+          <dd>{dinero(pago.extra, 2)}</dd>
+        </div>
+      )}
+      {conCargos && (
+        <div className="total">
+          <dt>{titulo} a cobrar</dt>
+          <dd>{dinero(pago.total, 2)} USD</dd>
+        </div>
+      )}
+    </>
   );
 }

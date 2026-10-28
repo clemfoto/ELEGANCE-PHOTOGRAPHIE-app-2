@@ -206,7 +206,7 @@ function EventoDeTarea({ r, ctx }: { r: AirRecord; ctx: Contexto }) {
           )}
           {c!.servicio && (
             <div className="campo-ficha">
-              <dt>Servicio</dt>
+              <dt>Paquete</dt>
               <dd>{c!.servicio}</dd>
             </div>
           )}

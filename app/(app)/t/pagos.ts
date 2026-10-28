@@ -4,11 +4,13 @@ import { headers } from "next/headers";
 import { tagTabla } from "@/lib/datos";
 import { requireAdmin } from "@/lib/auth";
 import { hoyISO } from "@/lib/formato";
-import { guardarContrato, guardarPagos as guardar, leerPagos, marcarDepositoPagado, type CambiosPagos } from "@/lib/pagos";
+import { guardarContrato, guardarPagos as guardar, leerPagos, marcarDepositoPagado, marcarEnviado, type CambiosPagos } from "@/lib/pagos";
+import { guardarMachote, leerMachote, registrarEnvio, rellenar } from "@/lib/envios";
+import { redondear, type Pago } from "@/lib/impuestos";
 import * as tgs from "@/lib/tugirosuite";
 import { TABLAS } from "@/config/galerias";
 
-/** Pagos del cliente y su contrato en TuGiroSuite (solo administradores). */
+/** Pagos del cliente, su contrato en TuGiroSuite y los documentos que se le mandan (solo administradores). */
 
 export type Resultado = { error?: string };
 
@@ -29,6 +31,14 @@ async function intentar(etiqueta: string, fn: () => Promise<void>): Promise<Resu
   return {};
 }
 
+const pagoTGS = (p: Pago, fraccion: number | null): tgs.PagoTGS => ({
+  base: p.base,
+  iva: p.iva,
+  extra_pct: fraccion ? redondear(fraccion * 100) : 0,
+  extra: p.extra,
+  total: p.total,
+});
+
 export async function guardarPagos(id: string, cambios: CambiosPagos): Promise<Resultado> {
   await requireAdmin();
   return intentar("guardar", () => guardar(id, cambios));
@@ -45,13 +55,13 @@ export async function prepararContrato(id: string, dron: boolean): Promise<Resul
       !p.nombre.trim() && "nombre",
       !p.email && "email del cliente",
       !p.fecha && "fecha del evento",
-      !p.servicios.length && "servicios",
-      p.servicios.some((s) => s.precio == null) && "precio de cada servicio",
+      !p.servicios.length && "paquetes",
+      p.servicios.some((s) => s.precio == null) && "precio de cada paquete",
       !(p.total > 0) && "costo total",
       !(p.deposito && p.deposito > 0) && "depósito",
     ].filter(Boolean);
     if (faltan.length) throw new Error(`Falta: ${faltan.join(", ")}.`);
-    if (p.deposito! > p.total) throw new Error("El depósito es mayor que el costo total.");
+    if (p.deposito! > p.subtotal) throw new Error("El depósito es mayor que el costo de los paquetes.");
     const h = await headers();
     const base = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
     const no = await tgs.crearContrato({
@@ -61,8 +71,10 @@ export async function prepararContrato(id: string, dron: boolean): Promise<Resul
       servicios: p.servicios.map((s) => ({ nombre: s.nombre, precio: s.precio, ...(s.descripcion?.trim() ? { descripcion: s.descripcion.trim() } : {}) })),
       resumen: { opciones: p.resumenOpciones, ...(p.resumenTexto.trim() ? { texto: p.resumenTexto.trim() } : {}) },
       total: p.total,
+      subtotal: p.subtotal,
       deposito: p.deposito!,
-      iva: p.aplicaIva,
+      iva: p.depositoIva || p.balanceIva,
+      pagos: { deposito: pagoTGS(p.pagoDeposito, p.depositoExtra), balance: pagoTGS(p.pagoBalance, p.balanceExtra) },
       dron,
       autofirma: false,
       avisoUrl: `${base}/t/clientes/${id}`,
@@ -71,25 +83,64 @@ export async function prepararContrato(id: string, dron: boolean): Promise<Resul
   });
 }
 
-/** Manda al cliente el contrato para firmar y el invoice del depósito; el depósito queda pagado. */
-export async function enviarContrato(id: string): Promise<Resultado> {
-  await requireAdmin();
+/**
+ * Manda al cliente solo los documentos elegidos (p. ej. solo el invoice) con el mensaje machote y
+ * lo apunta en el historial. Si va un invoice, el depósito queda pagado (con fecha de hoy si no tenía).
+ */
+export async function enviarContrato(id: string, documentos: string[]): Promise<Resultado> {
+  const u = await requireAdmin();
   return intentar("enviar", async () => {
     const p = await leerPagos(id);
     if (!p?.contrato) throw new Error("Primero prepara el contrato.");
-    await tgs.enviarContrato(p.contrato, p.nombre.trim());
-    await marcarDepositoPagado(id, hoyISO());
+    if (!p.email) throw new Error("Falta el email del cliente.");
+    const c = await tgs.leerContrato(p.contrato);
+    const elegidos = c.documentos.filter((d) => documentos.includes(d.id));
+    if (!elegidos.length) throw new Error("Elige al menos un documento.");
+    const titulos = elegidos.map((d) => d.titulo);
+    const m = await leerMachote();
+    const asunto = rellenar(m.asunto, p, titulos);
+    const mensaje = rellenar(m.mensaje, p, titulos);
+    await tgs.enviarContrato(p.contrato, { subject: asunto, message: mensaje, documentos: elegidos.map((d) => d.id) });
+    await registrarEnvio({
+      clienteId: id,
+      enviadoPor: u.nombre,
+      destinatario: p.email,
+      contratoNo: p.contrato,
+      documentos: elegidos.map((d) => ({ id: d.id, titulo: d.titulo })),
+      asunto,
+      mensaje,
+      tipo: "enviar",
+    });
+    await marcarEnviado(id);
+    if (elegidos.some((d) => d.solo_lectura)) await marcarDepositoPagado(id, hoyISO());
   });
+}
+
+/** Mensaje (machote) que acompaña a los documentos: el mismo para todos los clientes. */
+export async function guardarMensaje(asunto: string, mensaje: string): Promise<Resultado> {
+  const u = await requireAdmin();
+  return intentar("mensaje", () => guardarMachote(asunto, mensaje, u.nombre));
 }
 
 /** Tras la firma del cliente: pone la firma de Elegance y manda los documentos firmados al cliente y a Elegance. */
 export async function firmarContrato(id: string): Promise<Resultado> {
-  await requireAdmin();
+  const u = await requireAdmin();
   return intentar("firmar", async () => {
     const p = await leerPagos(id);
     if (!p?.contrato) throw new Error("Este cliente no tiene contrato.");
     await tgs.firmarContrato(p.contrato);
     await guardarContrato(id, p.contrato, "completo");
+    const c = await tgs.leerContrato(p.contrato).catch(() => null);
+    await registrarEnvio({
+      clienteId: id,
+      enviadoPor: u.nombre,
+      destinatario: p.email,
+      contratoNo: p.contrato,
+      documentos: (c?.documentos ?? []).filter((d) => !d.solo_lectura).map((d) => ({ id: d.id, titulo: d.titulo })),
+      asunto: "Documentos firmados (versión final)",
+      mensaje: null,
+      tipo: "firmar",
+    });
   });
 }
 

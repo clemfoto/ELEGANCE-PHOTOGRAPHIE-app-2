@@ -2029,3 +2029,85 @@ textarea.input {
 .visor-aviso a {
   color: #fff;
 }
+
+/* Impuestos de cada pago, envío de documentos e historial (ficha de cliente) */
+.cargos {
+  display: grid;
+  gap: 4px;
+}
+.cargos-extra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 16px;
+}
+.cargos-extra .input-grupo {
+  max-width: 140px;
+}
+.totales .totales-sub dt,
+.totales .totales-sub dd {
+  font-size: 14px;
+}
+.totales .totales-sub dt {
+  padding-left: 12px;
+}
+.enviar-docs {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borde);
+}
+.mensaje-previo,
+.historial details {
+  border-radius: var(--radio-chico);
+  background: var(--acento-suave);
+  padding: 10px 14px;
+}
+.mensaje-previo summary,
+.historial summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-weight: 600;
+}
+.historial {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.historial-fecha {
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--texto-2);
+}
+.historial-docs {
+  width: 100%;
+}
+.historial-mensaje {
+  font-size: 14px;
+  background: var(--tarjeta);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.variables {
+  margin: 12px 0 0;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+.variables div {
+  display: flex;
+  gap: 10px;
+}
+.variables dt {
+  min-width: 110px;
+}
+.variables dd {
+  margin: 0;
+  color: var(--texto-2);
+}
