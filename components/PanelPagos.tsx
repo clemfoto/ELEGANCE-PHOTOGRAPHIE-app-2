@@ -68,7 +68,7 @@ export default async function PanelPagos({ id }: { id: string }) {
             )}
             {estado === "borrador" && (
               <p className="nota-chica">
-                El cliente recibe por email los documentos que marques abajo, con el mensaje para clientes. Si va el invoice, el
+                El cliente recibe por email los documentos que marques abajo, con el mensaje para clientes. Si va el invoice del depósito, el
                 depósito queda marcado como pagado{p.depositoPagadoEn ? "" : " con fecha de hoy"}.
               </p>
             )}
@@ -93,7 +93,7 @@ export default async function PanelPagos({ id }: { id: string }) {
             {contrato && contrato.documentos.length > 0 && (
               <EnviarDocumentos
                 id={id}
-                docs={contrato.documentos.map((d) => ({ id: d.id, titulo: d.titulo, invoice: d.solo_lectura }))}
+                docs={contrato.documentos.map((d) => ({ id: d.id, titulo: d.titulo, invoice: d.solo_lectura && d.parte === "Invoice" }))}
                 inicial={estado === "borrador" ? contrato.documentos.map((d) => d.id) : []}
                 asunto={rellenar(machote.asunto, p, ["{documentos}"])}
                 mensaje={rellenar(machote.mensaje, p, ["{documentos}"])}

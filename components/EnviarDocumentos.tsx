@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { enviarContrato } from "@/app/(app)/t/pagos";
 
+/** `invoice`: es el invoice del depósito (al mandarlo, el depósito queda pagado). */
 export type DocEnvio = { id: string; titulo: string; invoice: boolean };
 
 /**
@@ -37,7 +38,7 @@ export default function EnviarDocumentos({
   const enviar = () => {
     const lista = titulos.join(", ");
     const pagaDeposito = docs.some((d) => d.invoice && elegidos.includes(d.id));
-    if (!confirm(`¿Mandar a ${email} ${titulos.length === 1 ? "este documento" : "estos documentos"}: ${lista}?${pagaDeposito ? "\n\nVa un invoice: el depósito quedará marcado como pagado." : ""}`)) return;
+    if (!confirm(`¿Mandar a ${email} ${titulos.length === 1 ? "este documento" : "estos documentos"}: ${lista}?${pagaDeposito ? "\n\nVa el invoice del depósito: el depósito quedará marcado como pagado." : ""}`)) return;
     setResultado({});
     empezar(async () => {
       const r = await enviarContrato(id, elegidos);

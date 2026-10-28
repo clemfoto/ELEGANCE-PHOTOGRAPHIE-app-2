@@ -90,7 +90,7 @@ export async function prepararContrato(id: string, dron: boolean): Promise<Resul
 
 /**
  * Manda al cliente solo los documentos elegidos (p. ej. solo el invoice) con el mensaje machote y
- * lo apunta en el historial. Si va un invoice, el depósito queda pagado (con fecha de hoy si no tenía).
+ * lo apunta en el historial. Si va el invoice del depósito, el depósito queda pagado (con fecha de hoy si no tenía).
  */
 export async function enviarContrato(id: string, documentos: string[]): Promise<Resultado> {
   const u = await requireAdmin();
@@ -117,7 +117,7 @@ export async function enviarContrato(id: string, documentos: string[]): Promise<
       tipo: "enviar",
     });
     await marcarEnviado(id);
-    if (elegidos.some((d) => d.solo_lectura)) await marcarDepositoPagado(id, hoyISO());
+    if (elegidos.some((d) => d.solo_lectura && d.parte === "Invoice")) await marcarDepositoPagado(id, hoyISO());
   });
 }
 
