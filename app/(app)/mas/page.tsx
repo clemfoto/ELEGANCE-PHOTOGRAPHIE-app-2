@@ -53,6 +53,21 @@ export default async function Mas() {
       </section>
 
       {esAdmin(u) && (
+        <div className="lista-menu">
+          <Link href="/mas/mensaje" className="menu-item">
+            <span aria-hidden>✉️</span>
+            <span>Mensaje para clientes</span>
+            <span className="flecha" aria-hidden>›</span>
+          </Link>
+          <Link href="/mas/envios" className="menu-item">
+            <span aria-hidden>📨</span>
+            <span>Documentos enviados</span>
+            <span className="flecha" aria-hidden>›</span>
+          </Link>
+        </div>
+      )}
+
+      {esAdmin(u) && (
         <section className="tarjeta bloque">
           <h2 className="seccion-titulo">Automatizaciones</h2>
           {!telegramConfigurado() ? (

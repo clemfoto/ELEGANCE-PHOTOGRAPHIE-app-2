@@ -31,6 +31,7 @@ export const TABLAS = {
   contabilidad: "tbl0hZCWeLtmriphU",
   gastos: "tblVtMgHzjUYHX5nv",
   equipo: "tbljsGsSe2Ep1Fnjy",
+  /** La tabla SERVICIOS se muestra como "PAQUETES". */
   servicios: "tblst8FBjp9HUIU5v",
 } as const;
 
@@ -176,8 +177,8 @@ export const GALERIAS: Record<string, Galeria> = {
     orden: { campo: "fecha del evento", dir: "asc" },
     estado: "ESTADO DEL CLIENTE",
     fecha: "fecha del evento",
-    /** Enlace a SERVICIOS: se muestran los nombres de los servicios. */
-    servicio: "Nombre del Servicio (from SERVICIO)",
+    /** Enlace a PAQUETES (tabla servicios): se muestran los nombres de los paquetes. */
+    servicio: "Paquetes",
     venue: "Venue",
     team: "Team Members",
     confirmados: "Confirmados",

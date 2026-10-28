@@ -56,7 +56,7 @@ export const MAPA: Record<string, MapaTabla> = {
     },
   },
 
-  // SERVICIOS
+  // SERVICIOS (en la app: PAQUETES)
   tblst8FBjp9HUIU5v: {
     tabla: "servicios",
     columnas: {
@@ -86,7 +86,10 @@ export const MAPA: Record<string, MapaTabla> = {
       fldF8DxVth6rxiM9u: c("aviso_confirmado", "casilla"),
       fldEPclienEmail01: c("email"),
       fldEPclienTelef01: c("telefono"),
-      fldEPclienIva0001: c("aplica_iva", "casilla"),
+      fldEPclienDepIva1: c("deposito_iva", "casilla"),
+      fldEPclienDepExt1: c("deposito_extra", "numero"),
+      fldEPclienBalIva1: c("balance_iva", "casilla"),
+      fldEPclienBalExt1: c("balance_extra", "numero"),
       fldEPclienDepos01: c("deposito", "numero"),
       fldEPclienDepPag1: c("deposito_pagado_en", "fecha"),
     },
@@ -103,10 +106,12 @@ export const MAPA: Record<string, MapaTabla> = {
     },
     adjuntos: { fldnvAtufMtm8ZLuC: "archivos" },
     calculados: {
-      // Precios por servicio (cliente_servicios.precio) + IVA: vista clientes_totales
+      // Precios por paquete (cliente_servicios.precio) + IVA y % adicional de cada pago: vista clientes_totales
       fldX48Mc1qMb95Kpq: { vista: "clientes_totales", col: "total" },
       fldEPclienSubtot1: { vista: "clientes_totales", col: "subtotal" },
       fldEPclienImpIva1: { vista: "clientes_totales", col: "iva" },
+      fldEPclienExtra01: { vista: "clientes_totales", col: "extra" },
+      fldEPclienDepTot1: { vista: "clientes_totales", col: "deposito_total" },
       fldEPclienBalanc1: { vista: "clientes_totales", col: "balance" },
       fld2mbR139wbyYrIe: { col: "creado_por", tipo: "json" },
       fld1UYWOqzIEOycTu: { col: "creado_en", tipo: "fechaHora" },
