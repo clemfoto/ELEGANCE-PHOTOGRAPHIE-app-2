@@ -48,6 +48,9 @@ export type Pagos = {
   /** Resumen del servicio: detalles elegidos de las opciones de sus servicios y texto libre. */
   resumenOpciones: string[];
   resumenTexto: string;
+  /** Wedding planner y su comisión (solo informativa: no cambia lo que paga el cliente). */
+  plannerNombre: string;
+  plannerComision: number | null;
 };
 
 export async function leerPagos(id: string): Promise<Pagos | null> {
@@ -68,6 +71,8 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     tugirosuite_contrato_id: string | null;
     solicitud_especial: string | null;
     resumen_opciones: string[];
+    planner_nombre: string | null;
+    planner_comision: number | null;
     subtotal: number;
     t_deposito: number;
     t_deposito_iva: number;
@@ -83,7 +88,7 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
   }>(
     `select c.id, c.nombre, c.fecha_evento, c.venue, c.email, c.telefono, c.costo, c.deposito,
             c.deposito_iva, c.deposito_extra, c.balance_iva, c.balance_extra,
-            c.deposito_pagado_en, c.tugirosuite_contrato_id, c.solicitud_especial, c.resumen_opciones,
+            c.deposito_pagado_en, c.tugirosuite_contrato_id, c.solicitud_especial, c.resumen_opciones, c.planner_nombre, c.planner_comision,
             t.subtotal, t.deposito as t_deposito, t.deposito_iva as t_deposito_iva, t.deposito_extra as t_deposito_extra,
             t.deposito_total, t.balance_base, t.balance_iva as t_balance_iva, t.balance_extra as t_balance_extra,
             t.balance, t.iva, t.extra, t.total
@@ -124,6 +129,8 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     contrato: c.tugirosuite_contrato_id,
     resumenOpciones: c.resumen_opciones ?? [],
     resumenTexto: c.solicitud_especial ?? "",
+    plannerNombre: c.planner_nombre ?? "",
+    plannerComision: c.planner_comision,
   };
 }
 

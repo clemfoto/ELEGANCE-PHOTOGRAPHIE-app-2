@@ -166,6 +166,8 @@ export type Galeria = {
   tarjeta?: string[];
   /** Accesos a registros enlazados que se destacan en la ficha. */
   relacionados?: { campo: string; titulo: string }[];
+  /** Casilla de "archivado": esos registros no salen en la lista ni en el selector de enlaces (los enlaces que ya existen se conservan). */
+  archivado?: string;
   [clave: string]: unknown;
 };
 
@@ -258,6 +260,12 @@ export const GALERIAS: Record<string, Galeria> = {
     comprobante: "Comprobante",
     aprobacion: "Aprobación",
     aprobadoPor: "Aprobado por",
+  },
+  /** PAQUETES (tabla servicios): en el orden del PDF de precios; los paquetes viejos quedan archivados. */
+  [TABLAS.servicios]: {
+    orden: { campo: "Orden", dir: "asc" },
+    tarjeta: ["Categoría", "Precio", "Descripción del Paquete"],
+    archivado: "Archivado",
   },
   [TABLAS.equipo]: {
     vista: "equipo",
