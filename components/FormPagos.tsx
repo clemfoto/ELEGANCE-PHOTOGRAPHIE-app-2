@@ -29,6 +29,7 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
   const [balanceExtra, setBalanceExtra] = useState(porcentaje(p.balanceExtra));
   const [email, setEmail] = useState(p.email ?? "");
   const [telefono, setTelefono] = useState(p.telefono ?? "");
+  const [emailsExtra, setEmailsExtra] = useState<string[]>(p.emailsExtra);
   const [elegidas, setElegidas] = useState<string[]>(p.resumenOpciones);
   const [resumenTexto, setResumenTexto] = useState(p.resumenTexto);
   const [pendiente, empezar] = useTransition();
@@ -56,6 +57,7 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
         balanceExtra: aFraccion(balanceExtra),
         email: email || null,
         telefono: telefono || null,
+        emailsExtra,
         resumenOpciones: elegidas,
         resumenTexto,
       });
@@ -183,11 +185,47 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
       </span>
       {t.balance.base < 0 && <p className="error">El depósito es mayor que el costo de los paquetes.</p>}
 
-      <label className="campo">
-        <span className="campo-label">Email del cliente</span>
-        <input className="input" type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <span className="campo-ayuda">Ahí le llegan el contrato y el invoice.</span>
-      </label>
+      <div className="campo">
+        <label className="campo-label" htmlFor="email-cliente">Email del cliente</label>
+        <span className="email-fila">
+          <input id="email-cliente" className="input" type="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <button
+            type="button"
+            className="btn btn-secundario email-boton"
+            aria-label="Agregar otro email"
+            title="Agregar otro email"
+            disabled={emailsExtra.length >= 5}
+            onClick={() => setEmailsExtra([...emailsExtra, ""])}
+          >
+            +
+          </button>
+        </span>
+        {emailsExtra.map((x, i) => (
+          <span key={i} className="email-fila">
+            <input
+              className="input"
+              type="email"
+              autoComplete="off"
+              placeholder={`Email ${i + 2}`}
+              aria-label={`Email ${i + 2}`}
+              value={x}
+              onChange={(e) => setEmailsExtra(emailsExtra.map((y, j) => (j === i ? e.target.value : y)))}
+            />
+            <button
+              type="button"
+              className="btn btn-secundario email-boton"
+              aria-label={`Quitar email ${i + 2}`}
+              title="Quitar"
+              onClick={() => setEmailsExtra(emailsExtra.filter((_, j) => j !== i))}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        <span className="campo-ayuda">
+          Ahí le llegan el contrato y los invoices{emailsExtra.length ? ", a todos los correos" : ""}. Con «+» agregas otro correo (hasta 5 más).
+        </span>
+      </div>
       <label className="campo">
         <span className="campo-label">Teléfono</span>
         <input className="input" type="tel" autoComplete="off" value={telefono} onChange={(e) => setTelefono(e.target.value)} />

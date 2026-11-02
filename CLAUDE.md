@@ -80,6 +80,7 @@ Motor genérico: cualquier tabla de la base se muestra como lista de tarjetas, c
 - **Paquetes:** los del PDF «Elegance Photographie Pricing 2026», en su orden (`servicios.orden`). Los viejos están **archivados** (`servicios.archivado`): no salen en la lista ni en el selector (`archivado` en la galería), pero los clientes que ya los tienen los conservan con su precio. «Ver archivados» los muestra.
 - **Días y horarios** (ficha de cliente, solo administrador): de 1 a 7 días, cada uno con fecha y hora de inicio y fin (`clientes.jornadas`, `lib/jornadas.ts`); el día 1 es la fecha del evento. En el calendario sale un evento por día con su horario.
 - **Wedding planner:** nombre y comisión en monto (`clientes.planner_nombre`, `planner_comision`); solo informativa: en Costo y pagos se ve «Neto para Elegance» (paquetes − comisión), sin cambiar lo que paga el cliente.
+- **Varios correos del cliente** (Costo y pagos): botón «+» junto al email para agregar hasta 5 más (`clientes.emails_extra`); se mandan como `cc` en `/send` y en `/countersign` de TuGiroSuite para que reciban contrato, invoices y versión firmada.
 - **Tareas:** lista agrupada ("Esta semana" / "Próximas" / "Hechas"), marcar como hecha con un toque, fecha límite en rojo si vence pronto.
 - **Entrega:** tarjetas filtrables por status, con los cambios deseados destacados.
 - **Leads:** tarjetas con los cuatro contactos como pasos (1º–4º) y quién hizo cada uno; acción para convertir un lead en cliente.

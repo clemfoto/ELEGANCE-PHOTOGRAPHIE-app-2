@@ -97,7 +97,7 @@ export default async function PanelPagos({ id }: { id: string }) {
                 inicial={estado === "borrador" ? contrato.documentos.map((d) => d.id) : []}
                 asunto={rellenar(machote.asunto, p, ["{documentos}"])}
                 mensaje={rellenar(machote.mensaje, p, ["{documentos}"])}
-                email={p.email}
+                email={p.email ? [p.email, ...p.emailsExtra].join(", ") : null}
               />
             )}
           </>

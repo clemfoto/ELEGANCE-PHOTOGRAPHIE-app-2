@@ -105,11 +105,11 @@ export async function enviarContrato(id: string, documentos: string[]): Promise<
     const m = await leerMachote();
     const asunto = rellenar(m.asunto, p, titulos);
     const mensaje = rellenar(m.mensaje, p, titulos);
-    await tgs.enviarContrato(p.contrato, { subject: asunto, message: mensaje, documentos: elegidos.map((d) => d.id) });
+    await tgs.enviarContrato(p.contrato, { subject: asunto, message: mensaje, documentos: elegidos.map((d) => d.id), cc: p.emailsExtra });
     await registrarEnvio({
       clienteId: id,
       enviadoPor: u.nombre,
-      destinatario: p.email,
+      destinatario: [p.email, ...p.emailsExtra].join(", "),
       contratoNo: p.contrato,
       documentos: elegidos.map((d) => ({ id: d.id, titulo: d.titulo })),
       asunto,
@@ -146,13 +146,13 @@ export async function firmarContrato(id: string): Promise<Resultado> {
   return intentar("firmar", async () => {
     const p = await leerPagos(id);
     if (!p?.contrato) throw new Error("Este cliente no tiene contrato.");
-    await tgs.firmarContrato(p.contrato);
+    await tgs.firmarContrato(p.contrato, p.emailsExtra);
     await guardarContrato(id, p.contrato, "completo");
     const c = await tgs.leerContrato(p.contrato).catch(() => null);
     await registrarEnvio({
       clienteId: id,
       enviadoPor: u.nombre,
-      destinatario: p.email,
+      destinatario: [p.email, ...p.emailsExtra].filter(Boolean).join(", "),
       contratoNo: p.contrato,
       documentos: (c?.documentos ?? []).filter((d) => !d.solo_lectura).map((d) => ({ id: d.id, titulo: d.titulo })),
       asunto: "Documentos firmados (versión final)",

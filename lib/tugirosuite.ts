@@ -92,8 +92,9 @@ export async function leerContrato(n: string): Promise<ContratoTGS> {
 /**
  * Manda al cliente los documentos elegidos (`documentos`: IDs de ContratoTGS.documentos) con el
  * asunto y el mensaje del machote: p. ej. solo el invoice, o el contrato para firmar y el invoice.
+ * `cc`: más correos del cliente que reciben el mismo email.
  */
-export async function enviarContrato(n: string, d: { subject: string; message: string; documentos: string[] }): Promise<void> {
+export async function enviarContrato(n: string, d: { subject: string; message: string; documentos: string[]; cc?: string[] }): Promise<void> {
   await api(`${no(n)}/send`, { method: "POST", body: JSON.stringify(d) });
 }
 
@@ -102,9 +103,9 @@ export async function crearInvoiceBalance(n: string, d: Omit<DatosContrato, "dro
   await api(`${no(n)}/invoices`, { method: "POST", body: JSON.stringify({ tipo: "balance", ...d }) });
 }
 
-/** Pone la firma de Elegance y manda la versión final firmada al cliente y a Elegance. */
-export async function firmarContrato(n: string): Promise<void> {
-  await api(`${no(n)}/countersign`, { method: "POST" });
+/** Pone la firma de Elegance y manda la versión final firmada al cliente (y a sus otros correos, `cc`) y a Elegance. */
+export async function firmarContrato(n: string, cc: string[] = []): Promise<void> {
+  await api(`${no(n)}/countersign`, { method: "POST", body: JSON.stringify({ cc }) });
 }
 
 export async function descartarContrato(n: string): Promise<void> {
