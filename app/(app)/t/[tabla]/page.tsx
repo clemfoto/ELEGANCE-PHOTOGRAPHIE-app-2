@@ -14,7 +14,7 @@ import Contabilidad from "@/components/vistas/Contabilidad";
 import Gastos from "@/components/vistas/Gastos";
 import Equipo from "@/components/vistas/Equipo";
 
-type Props = { params: Promise<{ tabla: string }>; searchParams: Promise<{ q?: string; f?: string }> };
+type Props = { params: Promise<{ tabla: string }>; searchParams: Promise<{ q?: string; f?: string; archivados?: string }> };
 
 const VISTAS = { clientes: Clientes, tareas: Tareas, entrega: Entrega, leads: Leads, contabilidad: Contabilidad, gastos: Gastos, equipo: Equipo };
 
@@ -24,12 +24,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function Lista({ params, searchParams }: Props) {
-  const [{ tabla }, { q = "", f }] = await Promise.all([params, searchParams]);
+  const [{ tabla }, { q = "", f, archivados }] = await Promise.all([params, searchParams]);
   const ctx = await contextoTabla(tabla);
   const fFiltro = ctx.g.filtro ? ctx.campos.find((x) => x.name === ctx.g.filtro) : undefined;
   const orden = ctx.g.orden;
 
   let regs = await getRegistros(ctx.t.id);
+  // Archivados (p. ej. paquetes viejos): fuera de la lista salvo que se pidan con ?archivados=1
+  const cArchivado = ctx.g.archivado ? String(ctx.g.archivado) : "";
+  const nArchivados = cArchivado ? regs.filter((r) => r.fields[cArchivado] === true).length : 0;
+  if (cArchivado) regs = regs.filter((r) => (r.fields[cArchivado] === true) === Boolean(archivados));
   const total = regs.length;
   regs = buscar(regs, ctx.campos, q, ctx.enlaces.nombres);
   regs = filtrarOpcion(regs, fFiltro, f);
@@ -50,9 +54,15 @@ export default async function Lista({ params, searchParams }: Props) {
         </div>
         <form className="buscador" action={base} role="search">
           {f && <input type="hidden" name="f" value={f} />}
+          {archivados && <input type="hidden" name="archivados" value="1" />}
           <input className="input" type="search" name="q" defaultValue={q} placeholder="Buscar…" aria-label="Buscar" enterKeyHint="search" />
         </form>
         {fFiltro && <Filtros base={base} q={q} activo={f} opciones={fFiltro.options?.choices?.map((c) => c.name) ?? []} />}
+        {nArchivados > 0 && (
+          <Link href={archivados ? base : `${base}?archivados=1`} className="nota-chica enlace-archivados">
+            {archivados ? "← Volver a la lista" : `Ver archivados (${nArchivados})`}
+          </Link>
+        )}
       </header>
 
       {regs.length ? <Vista ctx={ctx} regs={regs} /> : <p className="vacio-lista">{q || f ? "No hay resultados." : "Todavía no hay registros."}</p>}

@@ -1,4 +1,5 @@
 import "server-only";
+import { horario, jornadasPorCliente, type Jornada } from "@/lib/jornadas";
 import { getEsquema, getRegistros, type AirRecord } from "@/lib/datos";
 import type { Usuario } from "@/lib/auth";
 import { esAdmin, nombreDeRegistro, nombresDe, opciones, puedeVerTabla, rutaTabla, textoConEnlaces } from "@/lib/esquema";
@@ -63,16 +64,24 @@ export async function eventosCalendario(u: Usuario): Promise<EventoCal[]> {
   const out: EventoCal[] = [];
 
   const gC = GALERIAS[TABLAS.clientes];
+  // Eventos de varios días: uno por día, cada uno con su horario
+  const jornadas = clientes.length ? await jornadasPorCliente() : new Map<string, Jornada[]>();
   for (const r of clientes) {
     const d = r.fields[String(gC.fecha)];
     if (!esDia(d) || opciones(r.fields[String(gC.estado)]).some((x) => AUTOMATIZACIONES.estadosClienteIgnorados.includes(x))) continue;
-    out.push({
-      uid: r.id,
-      tipo: "evento",
-      dia: d.slice(0, 10),
-      titulo: texto(r.fields[String(gC.nombre)]) || "Evento",
-      detalle: [servicioCliente(r.fields[String(gC.servicio)]), texto(r.fields[String(gC.venue)]), personas(r.fields[String(gC.team)])].filter(Boolean).join(" · "),
-      href: ruta(TABLAS.clientes, r.id),
+    const nombre = texto(r.fields[String(gC.nombre)]) || "Evento";
+    const resto = [servicioCliente(r.fields[String(gC.servicio)]), texto(r.fields[String(gC.venue)]), personas(r.fields[String(gC.team)])];
+    const dias = jornadas.get(r.id) ?? [{ fecha: d.slice(0, 10), inicio: "", fin: "" }];
+    dias.forEach((j, i) => {
+      if (!esDia(j.fecha)) return;
+      out.push({
+        uid: i ? `${r.id}-dia${i + 1}` : r.id,
+        tipo: "evento",
+        dia: j.fecha,
+        titulo: dias.length > 1 ? `${nombre} (día ${i + 1} de ${dias.length})` : nombre,
+        detalle: [horario(j), ...resto].filter(Boolean).join(" · "),
+        href: ruta(TABLAS.clientes, r.id),
+      });
     });
   }
 

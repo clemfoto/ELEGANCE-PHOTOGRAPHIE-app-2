@@ -66,6 +66,9 @@ export const MAPA: Record<string, MapaTabla> = {
       fldb4a6ctlCRgHjWP: c("clientes_texto"),
       fldEPservPrecio01: c("precio", "numero"),
       fldEPservOpcion01: c("opciones"),
+      fldEPservCatego01: c("categoria"),
+      fldEPservOrden001: c("orden", "numero"),
+      fldEPservArchiv01: c("archivado", "casilla"),
     },
     enlaces: {
       fldGfTCoU054QIzMZ: { puente: "cliente_servicios", propia: "servicio_id", otra: "cliente_id" },
@@ -92,6 +95,8 @@ export const MAPA: Record<string, MapaTabla> = {
       fldEPclienBalExt1: c("balance_extra", "numero"),
       fldEPclienDepos01: c("deposito", "numero"),
       fldEPclienDepPag1: c("deposito_pagado_en", "fecha"),
+      fldEPclienPlanNo1: c("planner_nombre"),
+      fldEPclienPlanCo1: c("planner_comision", "numero"),
     },
     enlaces: {
       fldjlxe5Ut8V7KwPJ: { puente: "cliente_servicios", propia: "cliente_id", otra: "servicio_id" },

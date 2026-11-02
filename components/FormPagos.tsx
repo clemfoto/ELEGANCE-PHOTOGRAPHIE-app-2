@@ -164,6 +164,23 @@ export default function FormPagos({ p, bloqueado }: { p: Pagos; bloqueado: boole
           </div>
         )}
       </dl>
+      {p.plannerComision != null && p.plannerComision > 0 && (
+        <dl className="totales totales-planner">
+          <div>
+            <dt>Comisión planner{p.plannerNombre ? ` (${p.plannerNombre})` : ""}</dt>
+            <dd>− {dinero(p.plannerComision, 2)}</dd>
+          </div>
+          <div className="total">
+            <dt>Neto para Elegance (paquetes − comisión)</dt>
+            <dd>{dinero(redondear(subtotal - p.plannerComision), 2)} USD</dd>
+          </div>
+        </dl>
+      )}
+      <span className="campo-ayuda">
+        {p.plannerNombre || p.plannerComision != null
+          ? "La comisión del planner es solo informativa: no cambia lo que paga el cliente. Se cambia con «Editar»."
+          : "Wedding planner y su comisión: se agregan con «Editar»."}
+      </span>
       {t.balance.base < 0 && <p className="error">El depósito es mayor que el costo de los paquetes.</p>}
 
       <label className="campo">
