@@ -2143,3 +2143,22 @@ textarea.input {
 .totales dd {
   white-space: nowrap;
 }
+
+/* Varios correos del cliente */
+.email-fila {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.email-fila .input {
+  flex: 1;
+  min-width: 0;
+}
+.email-boton {
+  flex: none;
+  width: 48px;
+  min-height: 48px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}

@@ -23,6 +23,8 @@ export type Pagos = {
   fecha: string | null;
   venue: string | null;
   email: string | null;
+  /** Más correos del cliente: reciben también el contrato, los invoices y la versión firmada. */
+  emailsExtra: string[];
   telefono: string | null;
   servicios: ServicioPrecio[];
   /** Costo que venía de Airtable: es el subtotal mientras ningún paquete tenga precio. */
@@ -60,6 +62,7 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     fecha_evento: string | null;
     venue: string | null;
     email: string | null;
+    emails_extra: string[] | null;
     telefono: string | null;
     costo: number | null;
     deposito: number | null;
@@ -86,7 +89,7 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     extra: number;
     total: number;
   }>(
-    `select c.id, c.nombre, c.fecha_evento, c.venue, c.email, c.telefono, c.costo, c.deposito,
+    `select c.id, c.nombre, c.fecha_evento, c.venue, c.email, c.emails_extra, c.telefono, c.costo, c.deposito,
             c.deposito_iva, c.deposito_extra, c.balance_iva, c.balance_extra,
             c.deposito_pagado_en, c.tugirosuite_contrato_id, c.solicitud_especial, c.resumen_opciones, c.planner_nombre, c.planner_comision,
             t.subtotal, t.deposito as t_deposito, t.deposito_iva as t_deposito_iva, t.deposito_extra as t_deposito_extra,
@@ -110,6 +113,7 @@ export async function leerPagos(id: string): Promise<Pagos | null> {
     fecha: c.fecha_evento,
     venue: c.venue,
     email: c.email,
+    emailsExtra: c.emails_extra ?? [],
     telefono: c.telefono,
     servicios,
     costoAnterior: c.costo,
@@ -143,6 +147,7 @@ export type CambiosPagos = {
   balanceIva: boolean;
   balanceExtra: number | null;
   email: string | null;
+  emailsExtra?: string[];
   telefono: string | null;
   resumenOpciones: string[];
   resumenTexto: string;
@@ -166,15 +171,25 @@ const fraccion = (v: unknown) => {
   return n || null;
 };
 
+export const MAX_EMAILS_EXTRA = 5;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function guardarPagos(id: string, d: CambiosPagos): Promise<void> {
   const email = d.email?.trim() || null;
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("El email del cliente no es válido.");
+  if (email && !EMAIL.test(email)) throw new Error("El email del cliente no es válido.");
+  const extra = [...new Set((d.emailsExtra ?? []).map((x) => String(x).trim().toLowerCase()).filter(Boolean))].filter(
+    (x) => x !== email?.toLowerCase(),
+  );
+  const malo = extra.find((x) => !EMAIL.test(x));
+  if (malo) throw new Error(`El email «${malo}» no es válido.`);
+  if (extra.length > MAX_EMAILS_EXTRA) throw new Error(`Máximo ${MAX_EMAILS_EXTRA} correos además del principal.`);
+  if (extra.length && !email) throw new Error("Pon primero el email principal del cliente.");
   for (const [servicio, precio] of Object.entries(d.precios)) {
     await sql("update public.cliente_servicios set precio = $3 where cliente_id = $1 and servicio_id = $2", [id, servicio, monto(precio)]);
   }
   await sql(
     `update public.clientes set deposito = $2, email = $3, telefono = $4, resumen_opciones = $5, solicitud_especial = $6,
-            deposito_iva = $7, deposito_extra = $8, balance_iva = $9, balance_extra = $10 where id = $1`,
+            deposito_iva = $7, deposito_extra = $8, balance_iva = $9, balance_extra = $10, emails_extra = $11 where id = $1`,
     [
       id,
       monto(d.deposito),
@@ -186,6 +201,7 @@ export async function guardarPagos(id: string, d: CambiosPagos): Promise<void> {
       fraccion(d.depositoExtra),
       Boolean(d.balanceIva),
       fraccion(d.balanceExtra),
+      extra,
     ],
   );
 }

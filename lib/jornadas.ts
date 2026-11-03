@@ -67,3 +67,14 @@ export async function guardarJornadas(id: string, dias: Jornada[]): Promise<void
 /** "15:00–23:00" (o solo la que haya). */
 export const horario = (j: Pick<Jornada, "inicio" | "fin">) =>
   j.inicio && j.fin ? `${j.inicio}–${j.fin}` : j.inicio ? `desde ${j.inicio}` : j.fin ? `hasta ${j.fin}` : "";
+
+/**
+ * Líneas de fecha para los mensajes de Telegram: un día → "📅 sáb, 14 mar 2027 · 17:00–23:00";
+ * varios días → "📅 3 días" y una línea por día con su fecha y horario.
+ */
+export function lineasFecha(fechaEvento: string, jornadas: Jornada[] | undefined, formato: (f: string) => string): string[] {
+  const dias = jornadas?.length ? jornadas : [{ fecha: fechaEvento, inicio: "", fin: "" }];
+  const linea = (j: Jornada) => [formato(j.fecha) || "Sin fecha", horario(j)].filter(Boolean).join(" · ");
+  if (dias.length === 1) return [`📅 ${linea(dias[0])}`];
+  return [`📅 ${dias.length} días`, ...dias.map((j, i) => `   Día ${i + 1}: ${linea(j)}`)];
+}

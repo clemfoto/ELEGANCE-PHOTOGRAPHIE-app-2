@@ -80,11 +80,13 @@ Motor genérico: cualquier tabla de la base se muestra como lista de tarjetas, c
 - **Paquetes:** los del PDF «Elegance Photographie Pricing 2026», en su orden (`servicios.orden`). Los viejos están **archivados** (`servicios.archivado`): no salen en la lista ni en el selector (`archivado` en la galería), pero los clientes que ya los tienen los conservan con su precio. «Ver archivados» los muestra.
 - **Días y horarios** (ficha de cliente, solo administrador): de 1 a 7 días, cada uno con fecha y hora de inicio y fin (`clientes.jornadas`, `lib/jornadas.ts`); el día 1 es la fecha del evento. En el calendario sale un evento por día con su horario.
 - **Wedding planner:** nombre y comisión en monto (`clientes.planner_nombre`, `planner_comision`); solo informativa: en Costo y pagos se ve «Neto para Elegance» (paquetes − comisión), sin cambiar lo que paga el cliente.
+- **Varios correos del cliente** (Costo y pagos): botón «+» junto al email para agregar hasta 5 más (`clientes.emails_extra`); se mandan como `cc` en `/send` y en `/countersign` de TuGiroSuite para que reciban contrato, invoices y versión firmada.
 - **Tareas:** lista agrupada ("Esta semana" / "Próximas" / "Hechas"), marcar como hecha con un toque, fecha límite en rojo si vence pronto.
 - **Entrega:** tarjetas filtrables por status, con los cambios deseados destacados.
 - **Leads:** tarjetas con los cuatro contactos como pasos (1º–4º) y quién hizo cada uno; acción para convertir un lead en cliente.
 - **Contabilidad** (solo administrador): total pendiente arriba y una tarjeta por cliente con total, depósito, pendiente y fecha de balance.
 - **Gastos** (solo administrador): lista con categoría, fecha, quién pagó y monto; botón destacado "Foto del ticket" que sube la imagen a Comprobante.
+- **Archivos** (`components/SubirArchivo.tsx`): en cualquier campo de adjuntos se suben fotos (también HEIC), PDF, Word, Excel, PowerPoint, texto y zip, varios a la vez; hasta 5 MB por archivo (límite de las funciones de Netlify). Las fotos se reducen a JPEG antes de subir.
 - **Equipo** (solo administrador): personas, rol y número de eventos. La ficha oculta los enlaces inversos y el Telegram Chat ID (`ocultar` en la configuración de Equipo).
 
 - **Inicio** (`/inicio`): "Lo que necesita decisión": entregas "En revisión" (visto bueno → "Aprobada"), gastos por encima de `DECISIONES.limiteGasto` (los aprueba un socio distinto de quien pagó), leads sin 1er contacto en 24 h, pagos vencidos (saldo de Contabilidad con fecha de balance pasada hace más de 7 días), clientes próximos sin team y fechas duplicadas. Más "Tus próximos eventos" y "Tus tareas".
@@ -117,7 +119,7 @@ Navegación móvil: barra inferior con Inicio, Clientes, Tareas, Entrega, Leads 
 
 Viven en la app (`lib/automatizaciones.ts`, `lib/telegram.ts`) y sustituyen a los escenarios de Make "ELEGANCE APP 1/2" y "VIDEOS ELEGANCE 1/2". Las ejecutan tareas programadas de Netlify (`netlify/functions/auto-*.mjs`) que llaman a `/api/automatizaciones`; el bot (@Eleganceapp_bot) recibe mensajes y botones en `/api/telegram`. Parámetros en `AUTOMATIZACIONES` de `config/galerias.ts`.
 
-- Nuevo cliente → aviso al grupo de administradores ("Eventos Elegance", `TELEGRAM_ADMIN_CHAT_ID`) con fecha, venue, servicios, team, solicitudes y estado. (Antes ELEGANCE APP 1.)
+- Nuevo cliente → aviso al grupo de administradores ("Eventos Elegance", `TELEGRAM_ADMIN_CHAT_ID`) con fecha (y horario; si el evento es de varios días, cada día con su fecha y horario: `lineasFecha` de `lib/jornadas.ts`), venue, servicios, team, solicitudes y estado. (Antes ELEGANCE APP 1.)
 - Cliente que pasa a CONFIRMADO → aviso al mismo grupo, una sola vez (`Aviso confirmado`). (Antes ELEGANCE APP 2.)
 - Video nuevo en VIDEOS → mensaje al grupo "VIDEOS ELEGANCE" (`TELEGRAM_VIDEOS_CHAT_ID`) con los cambios y el botón "✅ MARCAR COMO ENTREGADO"; al tocarlo, el video pasa a ENTREGADO y se avisa en el grupo. También funcionan los botones antiguos de Make (`entregado|rec…`). (Antes VIDEOS ELEGANCE 1 y 2.)
 - Team members → invitación por Telegram con botón (o respuesta "confirmo"); se guarda en `Clientes.Confirmados`.
