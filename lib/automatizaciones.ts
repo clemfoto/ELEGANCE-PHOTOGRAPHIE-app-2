@@ -10,6 +10,7 @@ import {
 } from "@/lib/datos";
 import { campoPrincipal, nombreDeRegistro, opciones, textoConEnlaces, textoPrincipal, valorSeleccion } from "@/lib/esquema";
 import { diasHasta, fecha, hoyISO, moneda, texto } from "@/lib/formato";
+import { leerJornadas, lineasFecha } from "@/lib/jornadas";
 import { aNumero } from "@/lib/lista";
 import { chatVideos, enviar, enviarAdmins, h, ultimoErrorTelegram } from "@/lib/telegram";
 import { AUTOMATIZACIONES as A, EQUIPO, GALERIAS, TABLAS, ZONA_HORARIA } from "@/config/galerias";
@@ -98,9 +99,11 @@ async function textoAvisoCliente(
     ? team.map((id) => `${confirmados.has(id) ? "✅" : "⏳"} ${h(personas.get(id)?.nombre ?? "?")}`).join("\n")
     : "Sin team asignado";
   const faltan = team.filter((id) => !confirmados.has(id)).length;
+  // Eventos de varios días: cada día con su fecha y horario
+  const dias = lineasFecha(fechaEvento, (await leerJornadas(r.id))?.jornadas, fecha).map(h);
   const mensaje = [
     tipo === "nuevo" ? `🎬 <b>Nuevo cliente: ${h(nombreCliente(r))}</b>` : `✅ <b>Cliente confirmado: ${h(nombreCliente(r))}</b>`,
-    `📅 ${h(fecha(fechaEvento) || "Sin fecha")}`,
+    ...dias,
     `📍 ${h(texto(f[str(gCli.venue)]) || "Sin venue")}`,
     servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
     tipo === "nuevo" ? `💰 ${h(dinero(f[str(gCli.precio)]) || "Sin precio")}` : "",
@@ -212,7 +215,7 @@ export async function procesarClientes(base: string): Promise<string[]> {
           [
             `Hola ${h(p.nombre.split(" ")[0])} 👋`,
             `Estás en el equipo de <b>${h(nombre)}</b>`,
-            `📅 ${h(fecha(fechaEvento))}`,
+            ...lineasFecha(fechaEvento, (await leerJornadas(r.id))?.jornadas, fecha).map(h),
             `📍 ${h(texto(f[str(gCli.venue)]) || "Venue por confirmar")}`,
             ``,
             `¿Confirmas tu presencia? Toca el botón o responde <b>confirmo</b>.`,

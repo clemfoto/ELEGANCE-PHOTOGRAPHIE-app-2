@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Falta el archivo" }, { status: 400 });
   }
   if (archivo.size > MAX_BYTES) {
-    return NextResponse.json({ error: "El archivo pasa de 5 MB." }, { status: 413 });
+    return NextResponse.json({ error: "pasa de 5 MB" }, { status: 413 });
   }
 
   let registro = String(form.get("registro") ?? "");

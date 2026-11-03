@@ -21,6 +21,20 @@ async function comprimir(archivo: File): Promise<File> {
   }
 }
 
+/** Fotos y documentos que se pueden subir: imágenes (también HEIC del iPhone), PDF, Word, Excel, PowerPoint, texto y zip. */
+const TIPOS = [
+  "image/*",
+  ".heic,.heif,.jpg,.jpeg,.png,.webp,.gif",
+  ".pdf,application/pdf",
+  ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".txt,.rtf,.odt,.ods,.pages,.numbers,.key,.zip",
+].join(",");
+
+/** Límite por archivo (el servidor también lo comprueba). */
+const MAX_MB = 5;
+
 export default function SubirArchivo({
   tabla,
   campo,
@@ -41,25 +55,32 @@ export default function SubirArchivo({
   const router = useRouter();
   const [estado, setEstado] = useState<"" | "subiendo" | string>("");
 
-  async function subir(archivo: File) {
+  /** Sube los archivos uno por uno; sin registro (p. ej. «Foto del ticket») solo el primero, que crea el registro. */
+  async function subir(lista: File[]) {
     setEstado("subiendo");
-    const datos = new FormData();
-    datos.set("tabla", tabla);
-    datos.set("campo", campo);
-    if (registro) datos.set("registro", registro);
-    datos.set("archivo", await comprimir(archivo));
-    try {
-      const res = await fetch("/api/adjuntos", { method: "POST", body: datos });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Error al subir");
-      setEstado("");
-      if (registro) router.refresh();
-      else router.push(`${json.url}/editar`);
-    } catch (e) {
-      setEstado((e as Error).message);
-    } finally {
-      if (input.current) input.current.value = "";
+    const errores: string[] = [];
+    let url = "";
+    for (const original of registro ? lista : lista.slice(0, 1)) {
+      try {
+        const archivo = await comprimir(original);
+        if (archivo.size > MAX_MB * 1024 * 1024) throw new Error(`pasa de ${MAX_MB} MB`);
+        const datos = new FormData();
+        datos.set("tabla", tabla);
+        datos.set("campo", campo);
+        if (registro) datos.set("registro", registro);
+        datos.set("archivo", archivo);
+        const res = await fetch("/api/adjuntos", { method: "POST", body: datos });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || "no se pudo subir");
+        url = json.url;
+      } catch (e) {
+        errores.push(`«${original.name}»: ${(e as Error).message}`);
+      }
     }
+    if (input.current) input.current.value = "";
+    setEstado(errores.join(" · "));
+    if (registro) router.refresh();
+    else if (url) router.push(`${url}/editar`);
   }
 
   const subiendo = estado === "subiendo";
@@ -68,10 +89,11 @@ export default function SubirArchivo({
       <input
         ref={input}
         type="file"
-        accept="image/*,application/pdf"
+        accept={camara ? "image/*,.heic,.heif,.pdf,application/pdf" : TIPOS}
         capture={camara ? "environment" : undefined}
+        multiple={Boolean(registro)}
         hidden
-        onChange={(e) => e.target.files?.[0] && subir(e.target.files[0])}
+        onChange={(e) => e.target.files?.length && subir([...e.target.files])}
       />
       <button
         type="button"
