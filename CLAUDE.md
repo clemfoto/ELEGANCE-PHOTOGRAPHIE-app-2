@@ -124,7 +124,7 @@ Viven en la app (`lib/automatizaciones.ts`, `lib/telegram.ts`) y sustituyen a lo
 - Video nuevo en VIDEOS → mensaje al grupo "VIDEOS ELEGANCE" (`TELEGRAM_VIDEOS_CHAT_ID`) con los cambios y el botón "✅ MARCAR COMO ENTREGADO"; al tocarlo, el video pasa a ENTREGADO y se avisa en el grupo. También funcionan los botones antiguos de Make (`entregado|rec…`). (Antes VIDEOS ELEGANCE 1 y 2.)
 - Team members → invitación por Telegram con botón (o respuesta "confirmo"); se guarda en `Clientes.Confirmados`.
 - Videos → aviso al responsable 7 días antes de la fecha de entrega.
-- Leads → recordatorio a administradores a los 7, 14 y 21 días para el 2º, 3º y 4º contacto.
+- Sin recordatorios de contacto de leads: se quitaron a petición del cliente (no se mandan al grupo).
 - Sin informe contable por Telegram: se quitó a petición del cliente (la contabilidad no se manda al grupo).
 - La entrega automática a 9 semanas de Dreamcatcher está desactivada (`crearEntregaAuto: false`): en Elegance, VIDEOS son videos con cambios pedidos.
 - Campos internos ocultos en la app: `CAMPOS_OCULTOS`.

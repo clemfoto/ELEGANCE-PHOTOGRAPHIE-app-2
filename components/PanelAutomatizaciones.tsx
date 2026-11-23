@@ -4,7 +4,7 @@ import { useState } from "react";
 const TAREAS = [
   { tarea: "webhook", texto: "Conectar el bot", ayuda: "Hazlo una vez tras configurar el bot (o si cambias de dominio)." },
   { tarea: "frecuente", texto: "Enviar avisos de clientes", ayuda: "Nuevos clientes e invitaciones. Se hace solo cada 10 min." },
-  { tarea: "diaria", texto: "Enviar recordatorios de hoy", ayuda: "Entregas y leads. Se hace solo cada día a las 9:00." },
+  { tarea: "diaria", texto: "Enviar recordatorios de hoy", ayuda: "Entregas. Se hace solo cada día a las 9:00." },
 ];
 
 export default function PanelAutomatizaciones() {

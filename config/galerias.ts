@@ -324,8 +324,6 @@ export const AUTOMATIZACIONES = {
   semanasEntrega: 9,
   /** Días antes de la fecha de entrega en que se avisa al responsable. */
   diasAvisoEntrega: 7,
-  /** Días entre cada contacto de un lead (2º, 3º y 4º). */
-  diasEntreContactos: 7,
   /**
    * true: cada team member recibe su invitación por privado (sistema de Dreamcatcher).
    * false: todo va al grupo de eventos (TELEGRAM_ADMIN_CHAT_ID), donde está todo el equipo,
@@ -336,7 +334,7 @@ export const AUTOMATIZACIONES = {
   estadosClienteIgnorados: ["CANCELADO"],
   /** Estados de entrega que cuentan como entregada. */
   estadosEntregaHechos: ["ENTREGADO"],
-  /** Estados de lead que ya no necesitan recordatorios. */
+  /** Estados de lead cerrados (no salen en el calendario ni en el panel de inicio). */
   estadosLeadCerrados: ["Ganado", "Perdido", "cerrado", "cancelado"],
   /**
    * Crear una entrega automática a N semanas de cada cliente nuevo. En Elegance, VIDEOS guarda
@@ -361,7 +359,6 @@ export const AUTOMATIZACIONES = {
     clienteConfirmados: "Confirmados",
     clienteEntrega: "Entrega",
     entregaRecordatorio: "Recordatorio enviado",
-    leadRecordatorios: "Recordatorios enviados",
     clienteAvisoConfirmado: "Aviso confirmado",
     videoAviso: "Aviso enviado",
   },
