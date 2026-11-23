@@ -3,17 +3,15 @@ import { revalidateTag } from "next/cache";
 import {
   actualizarRegistro,
   crearRegistro,
-  getEsquema,
   getRegistrosSinCache,
   tagTabla,
   type AirRecord,
 } from "@/lib/datos";
-import { campoPrincipal, nombreDeRegistro, opciones, textoConEnlaces, textoPrincipal, valorSeleccion } from "@/lib/esquema";
+import { nombreDeRegistro, opciones, textoConEnlaces, textoPrincipal, valorSeleccion } from "@/lib/esquema";
 import { diasHasta, fecha, hoyISO, moneda, texto } from "@/lib/formato";
 import { leerJornadas, lineasFecha } from "@/lib/jornadas";
-import { aNumero } from "@/lib/lista";
 import { chatVideos, enviar, enviarAdmins, h, ultimoErrorTelegram } from "@/lib/telegram";
-import { AUTOMATIZACIONES as A, EQUIPO, GALERIAS, TABLAS, ZONA_HORARIA } from "@/config/galerias";
+import { AUTOMATIZACIONES as A, EQUIPO, GALERIAS, TABLAS } from "@/config/galerias";
 
 /*
  * Automatizaciones. Se ejecutan desde /api/automatizaciones (tareas programadas de Netlify)
@@ -24,7 +22,6 @@ import { AUTOMATIZACIONES as A, EQUIPO, GALERIAS, TABLAS, ZONA_HORARIA } from "@
 const C = A.campos;
 const gCli = GALERIAS[TABLAS.clientes];
 const gEnt = GALERIAS[TABLAS.entrega];
-const gLead = GALERIAS[TABLAS.leads];
 
 /** Dinero sin decimales para los mensajes. */
 const dinero = (n: unknown) => moneda(n, { id: "", name: "", type: "currency", options: { symbol: "$", precision: 0 } });
@@ -45,9 +42,6 @@ export function sumarDias(iso: string, dias: number): string {
   d.setUTCDate(d.getUTCDate() + dias);
   return d.toISOString().slice(0, 10);
 }
-
-/** "2026-09-26T18:42:26.000Z" → "2026-09-26" en la zona del negocio. */
-const fechaLocal = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA_HORARIA }).format(new Date(iso));
 
 type Persona = { id: string; nombre: string; chatId: string; usuario: string };
 
@@ -377,50 +371,6 @@ export async function recordatoriosEntrega(): Promise<string[]> {
     }
   }
   if (log.length) invalidar(TABLAS.entrega);
-  return log;
-}
-
-/* ------------------------------------------------------------------ */
-/* 4. Recordatorios de contacto de leads (cada 7 días)                  */
-/* ------------------------------------------------------------------ */
-
-export async function recordatoriosLeads(base: string): Promise<string[]> {
-  const log: string[] = [];
-  const [leads, personas] = await Promise.all([getRegistrosSinCache(TABLAS.leads), equipo()]);
-  const contactos = (gLead.contactos as string[]) ?? [];
-  const principal = campoPrincipal((await getEsquema()).find((t) => t.id === TABLAS.leads)!);
-
-  for (const r of leads) {
-    const f = r.fields;
-    if (A.estadosLeadCerrados.includes(texto(f[str(gLead.estado)]))) continue;
-    const dias = -(diasHasta(fechaLocal(r.createdTime)) ?? 0);
-    const paso = Math.min(contactos.length - 1, Math.floor(dias / A.diasEntreContactos)); // 1 = toca el 2º contacto
-    const enviados = aNumero(f[C.leadRecordatorios]);
-    if (paso < 1 || paso <= enviados) continue;
-
-    const nombre = textoPrincipal(f[principal.name]) || "Lead sin nombre";
-    const siguiente = contactos[paso];
-    if (ids(f[siguiente]).length === 0) {
-      const hechos = contactos
-        .slice(0, paso)
-        .map((c, i) => `${i + 1}º: ${ids(f[c]).length ? h(nombres(ids(f[c]), personas)) : "—"}`)
-        .join(" · ");
-      await enviarAdmins(
-        [
-          `📞 <b>Toca el ${paso + 1}º contacto</b> con <b>${h(nombre)}</b>`,
-          `Ingresó hace ${dias} días (${h(fecha(fechaLocal(r.createdTime)))}).`,
-          f[str(gLead.servicio)] ? `🎥 ${h(texto(f[str(gLead.servicio)]))}` : "",
-          hechos,
-          `<a href="${base}/t/leads/${r.id}">Abrir lead</a>`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      );
-      log.push(`Recordatorio ${paso + 1}º contacto: ${nombre}`);
-    }
-    await actualizarRegistro(TABLAS.leads, r.id, { [C.leadRecordatorios]: paso });
-  }
-  if (log.length) invalidar(TABLAS.leads);
   return log;
 }
 

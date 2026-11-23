@@ -5,7 +5,6 @@ import {
   avisosVideos,
   procesarClientes,
   recordatoriosEntrega,
-  recordatoriosLeads,
 } from "@/lib/automatizaciones";
 import { configurarWebhook, estadoWebhook, igualSeguro, secretoCron, telegramConfigurado } from "@/lib/telegram";
 
@@ -36,7 +35,7 @@ async function manejar(req: NextRequest) {
         log.push(...(await procesarClientes(base)), ...(await avisosVideos(base)));
         break;
       case "diaria":
-        log.push(...(await recordatoriosEntrega()), ...(await recordatoriosLeads(base)));
+        log.push(...(await recordatoriosEntrega()));
         break;
       case "webhook":
         await configurarWebhook(`${base}/api/telegram`);
