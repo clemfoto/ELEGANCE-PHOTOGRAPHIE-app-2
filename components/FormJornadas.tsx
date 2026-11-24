@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { guardarJornadas } from "@/app/(app)/t/jornadas";
-import type { Jornada } from "@/lib/jornadas";
+import type { Jornada } from "@/lib/horario";
 
 const MAX_DIAS = 7;
 
@@ -15,8 +15,9 @@ function masDias(fecha: string, n: number): string {
 }
 
 /**
- * Días del servicio (de 1 a 7) con la fecha y las horas de inicio y fin de cada uno.
- * Un evento de varios días es un solo cliente; el día 1 es la fecha del evento.
+ * Días del servicio (de 1 a 7). Cada día tiene la fecha y las horas de FOTOGRAFÍA y, si el video
+ * empieza en otro momento, las de VIDEOGRAFÍA. Un evento de varios días es un solo cliente; la
+ * fecha de fotografía del día 1 es la fecha del evento.
  */
 export default function FormJornadas({ id, inicial }: { id: string; inicial: Jornada[] }) {
   const router = useRouter();
@@ -29,7 +30,14 @@ export default function FormJornadas({ id, inicial }: { id: string; inicial: Jor
     // Los días nuevos van seguidos y con el mismo horario del día anterior
     while (nuevos.length < n) {
       const prev = nuevos[nuevos.length - 1];
-      nuevos.push({ fecha: masDias(prev.fecha, 1), inicio: prev.inicio, fin: prev.fin });
+      nuevos.push({
+        fecha: masDias(prev.fecha, 1),
+        inicio: prev.inicio,
+        fin: prev.fin,
+        videoFecha: prev.videoFecha ? masDias(prev.videoFecha, 1) : "",
+        videoInicio: prev.videoInicio,
+        videoFin: prev.videoFin,
+      });
     }
     setDias(nuevos);
   };
@@ -62,6 +70,8 @@ export default function FormJornadas({ id, inicial }: { id: string; inicial: Jor
       {dias.map((d, i) => (
         <fieldset key={i} className="campo jornada">
           <legend className="campo-label">{dias.length > 1 ? `Día ${i + 1}` : "Horario"}</legend>
+
+          <p className="jornada-servicio">📸 Fotografía</p>
           <label className="jornada-fila">
             <span>{i === 0 ? "Fecha del evento" : "Fecha"}</span>
             <input className="input" type="date" required value={d.fecha} onChange={(e) => cambiar(i, "fecha", e.target.value)} />
@@ -76,8 +86,25 @@ export default function FormJornadas({ id, inicial }: { id: string; inicial: Jor
               <input className="input" type="time" value={d.fin} onChange={(e) => cambiar(i, "fin", e.target.value)} />
             </label>
           </div>
+
+          <p className="jornada-servicio">🎥 Videografía</p>
+          <label className="jornada-fila">
+            <span>Fecha del evento</span>
+            <input className="input" type="date" value={d.videoFecha} onChange={(e) => cambiar(i, "videoFecha", e.target.value)} />
+          </label>
+          <div className="jornada-horas">
+            <label className="jornada-fila">
+              <span>Inicio</span>
+              <input className="input" type="time" value={d.videoInicio} onChange={(e) => cambiar(i, "videoInicio", e.target.value)} />
+            </label>
+            <label className="jornada-fila">
+              <span>Fin</span>
+              <input className="input" type="time" value={d.videoFin} onChange={(e) => cambiar(i, "videoFin", e.target.value)} />
+            </label>
+          </div>
         </fieldset>
       ))}
+      <p className="nota-chica">Videografía es opcional: llénala solo si el video tiene otro horario o fecha. Sin fecha, se usa la de fotografía.</p>
 
       <button type="submit" className="btn btn-primario btn-bloque" disabled={pendiente}>
         {pendiente ? "Guardando…" : "Guardar días y horarios"}

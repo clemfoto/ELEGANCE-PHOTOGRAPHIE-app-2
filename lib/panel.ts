@@ -24,15 +24,13 @@ export async function decisiones(u: Usuario) {
   const admin = esAdmin(u);
   const gC = GALERIAS[TABLAS.clientes];
   const gE = GALERIAS[TABLAS.entrega];
-  const gL = GALERIAS[TABLAS.leads];
   const gG = GALERIAS[TABLAS.gastos];
   const gK = GALERIAS[TABLAS.contabilidad];
   const gT = GALERIAS[TABLAS.tareas];
 
-  const [clientes, entregas, leads, gastos, conta, tareas] = await Promise.all([
+  const [clientes, entregas, gastos, conta, tareas] = await Promise.all([
     leer(TABLAS.clientes),
     leer(TABLAS.entrega),
-    leer(TABLAS.leads),
     admin ? leer(TABLAS.gastos) : Promise.resolve([]),
     admin ? leer(TABLAS.contabilidad) : Promise.resolve([]),
     leer(TABLAS.tareas),
@@ -50,16 +48,6 @@ export async function decisiones(u: Usuario) {
     if (estado === DECISIONES.aprobacionPendiente) return true;
     return !estado && aNumero(f(r, "monto", gG)) > DECISIONES.limiteGasto;
   });
-
-  // Leads sin primer contacto en más de 24 h
-  const primerContacto = (gL.contactos as string[])[0];
-  const limiteLead = Date.now() - DECISIONES.horasLeadSinContacto * 3600_000;
-  const leadsSinContacto = leads.filter(
-    (r) =>
-      !ids(r.fields[primerContacto]).length &&
-      !AUTOMATIZACIONES.estadosLeadCerrados.includes(texto(f(r, "estado", gL))) &&
-      Date.parse(r.createdTime) < limiteLead,
-  );
 
   // Pagos vencidos: saldo pendiente en Contabilidad y fecha de balance pasada hace más de 7 días
   const pagosVencidos = conta
@@ -92,7 +80,6 @@ export async function decisiones(u: Usuario) {
     hoy: hoyISO(),
     entregasRevision,
     gastosPorAprobar,
-    leadsSinContacto,
     pagosVencidos,
     sinTeam,
     duplicadas,
@@ -101,7 +88,6 @@ export async function decisiones(u: Usuario) {
     total:
       entregasRevision.length +
       gastosPorAprobar.length +
-      leadsSinContacto.length +
       pagosVencidos.length +
       sinTeam.length +
       duplicadas.length,

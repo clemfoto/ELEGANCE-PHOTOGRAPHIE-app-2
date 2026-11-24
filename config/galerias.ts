@@ -307,8 +307,6 @@ export const DECISIONES = {
   aprobacionPendiente: "Pendiente",
   aprobado: "Aprobado",
   rechazado: "Rechazado",
-  /** Horas sin primer contacto para que un lead salga en el panel. */
-  horasLeadSinContacto: 24,
   /** Días de retraso (tras la fecha de balance de Contabilidad) para que un pago cuente como vencido. */
   diasPagoVencido: 7,
   /** Días hacia delante en que se buscan eventos sin team o en la misma fecha. */

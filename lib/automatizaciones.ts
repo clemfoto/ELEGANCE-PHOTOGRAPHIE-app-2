@@ -68,7 +68,9 @@ const nombres = (lista: string[], personas: Map<string, Persona>) =>
 
 const nombreCliente = (r: AirRecord) => textoPrincipal(r.fields[str(gCli.nombre)]) || "Sin nombre";
 
-type TipoAviso = "nuevo" | "confirmado";
+/** nuevo: alta del cliente; confirmado: pasó a CONFIRMADO; actualizacion: «Enviar aviso al grupo» de la ficha. */
+type TipoAviso = "nuevo" | "confirmado" | "actualizacion";
+const ACTUALIZACION = "ACTUALIZACIÓN INFO";
 
 /**
  * Mensaje del grupo para un cliente: datos del evento, el team con quién confirmó y el botón
@@ -96,11 +98,15 @@ async function textoAvisoCliente(
   // Eventos de varios días: cada día con su fecha y horario
   const dias = lineasFecha(fechaEvento, (await leerJornadas(r.id))?.jornadas, fecha).map(h);
   const mensaje = [
-    tipo === "nuevo" ? `🎬 <b>Nuevo cliente: ${h(nombreCliente(r))}</b>` : `✅ <b>Cliente confirmado: ${h(nombreCliente(r))}</b>`,
+    tipo === "nuevo"
+      ? `🎬 <b>Nuevo cliente: ${h(nombreCliente(r))}</b>`
+      : tipo === "confirmado"
+        ? `✅ <b>Cliente confirmado: ${h(nombreCliente(r))}</b>`
+        : `🔄🔄 <b>${ACTUALIZACION}</b> 🔄🔄\n<b>${h(nombreCliente(r))}</b>`,
     ...dias,
     `📍 ${h(texto(f[str(gCli.venue)]) || "Sin venue")}`,
     servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
-    tipo === "nuevo" ? `💰 ${h(dinero(f[str(gCli.precio)]) || "Sin precio")}` : "",
+    tipo !== "confirmado" ? `💰 ${h(dinero(f[str(gCli.precio)]) || "Sin precio")}` : "",
     estados.length ? `🔵 ${h(estados.join(", "))}` : "",
     f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
     `\n👥 <b>Team</b> (${team.length - faltan}/${team.length} confirmados)\n${lineaTeam}`,
@@ -124,19 +130,22 @@ async function enviarAvisoCliente(
   return enviarAdmins(m.texto, m.botones);
 }
 
-/** Reenvía al grupo el aviso de un cliente (botón de la ficha), p. ej. para avisos antiguos sin botón. */
+/**
+ * «Enviar aviso al grupo» (ficha del cliente): manda la información actual con el encabezado
+ * ACTUALIZACIÓN INFO, para distinguirlo del aviso de cliente nuevo.
+ */
 export async function reenviarAvisoCliente(clienteId: string, base: string): Promise<boolean> {
   const r = (await getRegistrosSinCache(TABLAS.clientes)).find((x) => x.id === clienteId);
   if (!r) return false;
-  const tipo = opciones(r.fields[str(gCli.estado)]).includes(A.estadoConfirmado) ? "confirmado" : "nuevo";
-  return enviarAvisoCliente(r, tipo, base);
+  return enviarAvisoCliente(r, "actualizacion", base);
 }
 
 /** Mensaje del grupo actualizado tras una confirmación (mismo tipo que el original). */
 export async function avisoActualizado(clienteId: string, textoOriginal: string, base: string) {
   const r = (await getRegistrosSinCache(TABLAS.clientes)).find((x) => x.id === clienteId);
   if (!r) return null;
-  return textoAvisoCliente(r, textoOriginal.includes("Cliente confirmado") ? "confirmado" : "nuevo", base);
+  const tipo = textoOriginal.includes(ACTUALIZACION) ? "actualizacion" : textoOriginal.includes("Cliente confirmado") ? "confirmado" : "nuevo";
+  return textoAvisoCliente(r, tipo, base);
 }
 
 /* ------------------------------------------------------------------ */

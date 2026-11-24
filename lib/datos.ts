@@ -485,3 +485,17 @@ export async function subirAdjunto(
   }
 }
 
+
+/** Borra un archivo de un campo de adjuntos (la fila y el archivo del bucket). */
+export async function borrarAdjunto(recordId: string, fieldId: string, adjuntoId: string): Promise<void> {
+  const m = Object.values(MAPA).find((x) => x.adjuntos?.[fieldId]);
+  if (!m) throw new DatosError(422, "Ese campo no admite archivos.");
+  const cx = db();
+  const { rows } = await cx.query<{ storage_path: string }>(
+    `delete from public.adjuntos where tabla = $1 and registro_id = $2 and campo = $3 and id::text = $4 returning storage_path`,
+    [m.tabla, recordId, m.adjuntos![fieldId], adjuntoId],
+  );
+  if (!rows.length) throw new DatosError(404, "El archivo ya no existe.");
+  await cx.query(`update public.${ident(m.tabla)} set modificado_en = now() where id = $1`, [recordId]);
+  await borrarArchivos(rows.map((r) => r.storage_path));
+}
