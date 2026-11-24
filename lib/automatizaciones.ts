@@ -8,7 +8,7 @@ import {
   type AirRecord,
 } from "@/lib/datos";
 import { nombreDeRegistro, opciones, textoConEnlaces, textoPrincipal, valorSeleccion } from "@/lib/esquema";
-import { diasHasta, fecha, hoyISO, moneda, texto } from "@/lib/formato";
+import { diasHasta, fecha, hoyISO, texto } from "@/lib/formato";
 import { leerJornadas, lineasFecha } from "@/lib/jornadas";
 import { chatVideos, enviar, enviarAdmins, h, ultimoErrorTelegram } from "@/lib/telegram";
 import { AUTOMATIZACIONES as A, EQUIPO, GALERIAS, TABLAS } from "@/config/galerias";
@@ -22,9 +22,6 @@ import { AUTOMATIZACIONES as A, EQUIPO, GALERIAS, TABLAS } from "@/config/galeri
 const C = A.campos;
 const gCli = GALERIAS[TABLAS.clientes];
 const gEnt = GALERIAS[TABLAS.entrega];
-
-/** Dinero sin decimales para los mensajes. */
-const dinero = (n: unknown) => moneda(n, { id: "", name: "", type: "currency", options: { symbol: "$", precision: 0 } });
 
 const invalidar = (...tablas: string[]) => {
   for (const t of tablas) {
@@ -106,7 +103,6 @@ async function textoAvisoCliente(
     ...dias,
     `📍 ${h(texto(f[str(gCli.venue)]) || "Sin venue")}`,
     servicios(f[str(gCli.servicio)]) ? `📋 ${h(servicios(f[str(gCli.servicio)]))}` : "",
-    tipo !== "confirmado" ? `💰 ${h(dinero(f[str(gCli.precio)]) || "Sin precio")}` : "",
     estados.length ? `🔵 ${h(estados.join(", "))}` : "",
     f[C.clienteSolicitudes] ? `📝 ${h(texto(f[C.clienteSolicitudes]))}` : "",
     `\n👥 <b>Team</b> (${team.length - faltan}/${team.length} confirmados)\n${lineaTeam}`,
