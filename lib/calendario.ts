@@ -1,5 +1,5 @@
 import "server-only";
-import { horario, jornadasPorCliente, type Jornada } from "@/lib/jornadas";
+import { horario, horarioVideo, jornadasPorCliente, tieneVideo, type Jornada } from "@/lib/jornadas";
 import { getEsquema, getRegistros, type AirRecord } from "@/lib/datos";
 import type { Usuario } from "@/lib/auth";
 import { esAdmin, nombreDeRegistro, nombresDe, opciones, puedeVerTabla, rutaTabla, textoConEnlaces } from "@/lib/esquema";
@@ -71,17 +71,36 @@ export async function eventosCalendario(u: Usuario): Promise<EventoCal[]> {
     if (!esDia(d) || opciones(r.fields[String(gC.estado)]).some((x) => AUTOMATIZACIONES.estadosClienteIgnorados.includes(x))) continue;
     const nombre = texto(r.fields[String(gC.nombre)]) || "Evento";
     const resto = [servicioCliente(r.fields[String(gC.servicio)]), texto(r.fields[String(gC.venue)]), personas(r.fields[String(gC.team)])];
-    const dias = jornadas.get(r.id) ?? [{ fecha: d.slice(0, 10), inicio: "", fin: "" }];
+    const dias = jornadas.get(r.id) ?? [{ fecha: d.slice(0, 10), inicio: "", fin: "", videoFecha: "", videoInicio: "", videoFin: "" }];
     dias.forEach((j, i) => {
       if (!esDia(j.fecha)) return;
+      const titulo = dias.length > 1 ? `${nombre} (día ${i + 1} de ${dias.length})` : nombre;
+      // Videografía otro día: evento aparte con su horario
+      const videoAparte = tieneVideo(j) && esDia(j.videoFecha) && j.videoFecha !== j.fecha;
+      const foto = horario(j);
+      const video = horarioVideo(j);
       out.push({
         uid: i ? `${r.id}-dia${i + 1}` : r.id,
         tipo: "evento",
         dia: j.fecha,
-        titulo: dias.length > 1 ? `${nombre} (día ${i + 1} de ${dias.length})` : nombre,
-        detalle: [horario(j), ...resto].filter(Boolean).join(" · "),
+        titulo,
+        detalle: [
+          tieneVideo(j) ? (foto ? `Foto ${foto}` : "") : foto,
+          tieneVideo(j) && !videoAparte && video ? `Video ${video}` : "",
+          ...resto,
+        ].filter(Boolean).join(" · "),
         href: ruta(TABLAS.clientes, r.id),
       });
+      if (videoAparte) {
+        out.push({
+          uid: `${r.id}-video${i + 1}`,
+          tipo: "evento",
+          dia: j.videoFecha,
+          titulo: `${titulo} · video`,
+          detalle: [video ? `Video ${video}` : "", ...resto].filter(Boolean).join(" · "),
+          href: ruta(TABLAS.clientes, r.id),
+        });
+      }
     });
   }
 

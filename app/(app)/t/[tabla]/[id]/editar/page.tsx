@@ -6,7 +6,7 @@ import { campoPrincipal, rutaTabla, textoPrincipal } from "@/lib/esquema";
 import { camposFormulario } from "@/lib/formulario";
 import Formulario from "@/components/Formulario";
 import SubirArchivo from "@/components/SubirArchivo";
-import { Valor } from "@/components/Valor";
+import Adjuntos from "@/components/Adjuntos";
 
 export const metadata = { title: "Editar" };
 
@@ -28,7 +28,7 @@ export default async function Editar({ params }: { params: Promise<{ tabla: stri
       {adjuntos.map((f) => (
         <section key={f.id} className="tarjeta bloque">
           <span className="campo-label">{f.name}</span>
-          <Valor f={f} v={r.fields[f.name]} enlaces={ctx.enlaces} />
+          <Adjuntos tabla={ctx.t.id} campo={f.id} registro={r.id} archivos={(r.fields[f.name] as never[]) ?? []} />
           <SubirArchivo tabla={ctx.t.id} campo={f.id} registro={r.id} etiqueta="Añadir foto o archivo" />
         </section>
       ))}

@@ -30,11 +30,10 @@ export default async function Inicio() {
   const admin = esAdmin(u);
   // El panel de decisiones es solo para administradores.
   if (!admin) redirect("/");
-  const [d, enlaces, nombreGasto, nombreLead, nombreConta, nombreTarea] = await Promise.all([
+  const [d, enlaces, nombreGasto, nombreConta, nombreTarea] = await Promise.all([
     decisiones(u),
     enlacesGlobales(u),
     nombreDeRegistro(TABLAS.gastos),
-    nombreDeRegistro(TABLAS.leads),
     nombreDeRegistro(TABLAS.contabilidad),
     nombreDeRegistro(TABLAS.tareas),
   ]);
@@ -91,13 +90,6 @@ export default async function Inicio() {
             })}
           </Grupo>
         )}
-
-        <Grupo titulo="Leads sin primer contacto" n={d.leadsSinContacto.length} nota={`Llevan más de ${DECISIONES.horasLeadSinContacto} horas sin que nadie les escriba.`}>
-          {d.leadsSinContacto.map((r) => (
-            <Fila key={r.id} href={ruta(TABLAS.leads, r.id)} titulo={nombreLead(r) || "Lead"}
-              meta={[`Entró ${hace(diasHasta(r.createdTime.slice(0, 10)))}`, texto(v(r, TABLAS.leads, "servicio")), v(r, TABLAS.leads, "fecha") && `Evento ${fecha(v(r, TABLAS.leads, "fecha"))}`]} />
-          ))}
-        </Grupo>
 
         {admin && (
           <Grupo titulo="Pagos vencidos" n={d.pagosVencidos.length} nota={`Saldo pendiente más de ${DECISIONES.diasPagoVencido} días después de la fecha de balance.`}>

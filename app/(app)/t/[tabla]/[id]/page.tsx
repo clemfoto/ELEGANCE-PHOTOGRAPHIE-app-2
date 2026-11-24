@@ -7,6 +7,7 @@ import { campoPrincipal, esAdmin, esSoloLectura, rutaTabla, textoPrincipal, titu
 import { fecha, texto } from "@/lib/formato";
 import { Valor } from "@/components/Valor";
 import SubirArchivo from "@/components/SubirArchivo";
+import Adjuntos from "@/components/Adjuntos";
 import BotonBorrar from "@/components/BotonBorrar";
 import BotonHecha from "@/components/BotonHecha";
 import { AccionLead, Pasos } from "@/components/vistas/Leads";
@@ -86,9 +87,13 @@ export default async function Ficha({ params }: Props) {
                 {esSoloLectura(f) && <span className="calc" title="Se calcula automáticamente"> · auto</span>}
               </dt>
               <dd>
-                <Valor f={f} v={r.fields[f.name]} enlaces={ctx.enlaces} />
-                {f.type === "multipleAttachments" && (
-                  <SubirArchivo tabla={ctx.t.id} campo={f.id} registro={r.id} etiqueta={`Añadir a ${f.name}`} />
+                {f.type === "multipleAttachments" ? (
+                  <>
+                    <Adjuntos tabla={ctx.t.id} campo={f.id} registro={r.id} archivos={(r.fields[f.name] as never[]) ?? []} />
+                    <SubirArchivo tabla={ctx.t.id} campo={f.id} registro={r.id} etiqueta={`Añadir a ${f.name}`} />
+                  </>
+                ) : (
+                  <Valor f={f} v={r.fields[f.name]} enlaces={ctx.enlaces} />
                 )}
               </dd>
             </div>

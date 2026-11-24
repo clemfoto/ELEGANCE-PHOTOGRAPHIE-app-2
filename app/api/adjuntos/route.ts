@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidateTag } from "next/cache";
-import { crearRegistro, subirAdjunto, tagTabla } from "@/lib/datos";
+import { borrarAdjunto, crearRegistro, subirAdjunto, tagTabla } from "@/lib/datos";
 import { getUsuario } from "@/lib/auth";
 import { campo, campoVisible, puedeVerTabla, rutaTabla, tablaPorId } from "@/lib/esquema";
 import { hoyISO } from "@/lib/formato";
@@ -54,4 +54,27 @@ export async function POST(req: NextRequest) {
   revalidateTag(tagTabla(t.id), { expire: 0 });
   for (const x of t.fields) if (x.options?.linkedTableId) revalidateTag(tagTabla(x.options.linkedTableId), { expire: 0 });
   return NextResponse.json({ registro, url: `${rutaTabla(t)}/${registro}` });
+}
+
+/** Borra un archivo de un campo de adjuntos: { tabla, campo, registro, adjunto }. */
+export async function DELETE(req: NextRequest) {
+  const u = await getUsuario();
+  if (!u) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const t = await tablaPorId(String(body.tabla ?? ""));
+  if (!t || !puedeVerTabla(u, t.id)) return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+  const f = t.fields.find((x) => x.id === body.campo);
+  if (!f || f.type !== "multipleAttachments" || !campoVisible(u, f, t)) {
+    return NextResponse.json({ error: "Campo no válido" }, { status: 400 });
+  }
+  const registro = String(body.registro ?? "");
+  const adjunto = String(body.adjunto ?? "");
+  if (!registro || !adjunto) return NextResponse.json({ error: "Falta el archivo" }, { status: 400 });
+  try {
+    await borrarAdjunto(registro, f.id, adjunto);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+  }
+  revalidateTag(tagTabla(t.id), { expire: 0 });
+  return NextResponse.json({ ok: true });
 }
